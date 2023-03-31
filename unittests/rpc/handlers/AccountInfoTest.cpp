@@ -140,8 +140,6 @@ TEST_P(AccountInfoParameterTest, InvalidParams)
 
         auto const err = RPC::makeError(output.error());
         EXPECT_EQ(err.at("error").as_string(), testBundle.expectedError);
-        std::cout << err.at("error").as_string() << std::endl;
-        std::cout << err.at("error_message").as_string() << std::endl;
         EXPECT_EQ(
             err.at("error_message").as_string(),
             testBundle.expectedErrorMessage);
@@ -411,6 +409,5 @@ TEST_F(RPCAccountInfoHandlerTest, SignerListsTrue)
         auto const output = handler.process(input, yield);
         ASSERT_TRUE(output);
         EXPECT_EQ(*output, json::parse(expectedOutput));
-        std::cout << output.value() << std::endl;
     });
 }

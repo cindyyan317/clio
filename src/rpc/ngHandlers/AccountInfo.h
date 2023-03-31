@@ -65,6 +65,7 @@ public:
     };
 
     // "queue" is not available in Reporting mode
+    // TODO: ident is not in document
     struct Input
     {
         std::optional<std::string> account;

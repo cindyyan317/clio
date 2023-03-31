@@ -51,7 +51,7 @@ AccountInfoHandler::process(
         return Error{RPC::Status{
             RPC::RippledError::rpcACT_NOT_FOUND, "accountNotFound"}};
 
-    ripple::STLedgerEntry sle{
+    ripple::STLedgerEntry const sle{
         ripple::SerialIter{
             accountLedgerObject->data(), accountLedgerObject->size()},
         accountKeylet.key};
@@ -62,7 +62,7 @@ AccountInfoHandler::process(
     {
         // We put the SignerList in an array because of an anticipated
         // future when we support multiple signer lists on one account.
-        auto signersKey = ripple::keylet::signers(*accountID);
+        auto const signersKey = ripple::keylet::signers(*accountID);
         // This code will need to be revisited if in the future we
         // support multiple SignerLists on one account.
         auto const signers = sharedPtrBackend_->fetchLedgerObject(
@@ -70,7 +70,7 @@ AccountInfoHandler::process(
         std::vector<ripple::STLedgerEntry> signerList;
         if (signers)
         {
-            ripple::STLedgerEntry sleSigners{
+            ripple::STLedgerEntry const sleSigners{
                 ripple::SerialIter{signers->data(), signers->size()},
                 signersKey.key};
             if (!signersKey.check(sleSigners))
