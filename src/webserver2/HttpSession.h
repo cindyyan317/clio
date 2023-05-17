@@ -28,8 +28,8 @@ using tcp = boost::asio::ip::tcp;
 
 namespace ServerNG {
 // Handles an HTTP server connection
-template <class T>
-class HttpSession : public HttpBase<HttpSession, T>, public std::enable_shared_from_this<HttpSession<T>>
+template <class Callback>
+class HttpSession : public HttpBase<HttpSession, Callback>, public std::enable_shared_from_this<HttpSession<Callback>>
 {
     boost::beast::tcp_stream stream_;
     std::optional<std::string> ip_;
@@ -43,7 +43,8 @@ public:
         clio::DOSGuard& dosGuard,
         Callback const& callback,
         boost::beast::flat_buffer buffer)
-        : HttpBase<HttpSession, T>(ioc, tagFactory, dosGuard, callback, std::move(buffer)), stream_(std::move(socket))
+        : HttpBase<HttpSession, Callback>(ioc, tagFactory, dosGuard, callback, std::move(buffer))
+        , stream_(std::move(socket))
     {
         try
         {
@@ -90,7 +91,7 @@ public:
         // to be thread-safe by default.
         net::dispatch(
             stream_.get_executor(),
-            boost::beast::bind_front_handler(&HttpBase<HttpSession, T>::doRead, this->shared_from_this()));
+            boost::beast::bind_front_handler(&HttpBase<HttpSession, Callback>::doRead, this->shared_from_this()));
     }
 
     void

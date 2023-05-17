@@ -71,7 +71,6 @@ class Executor
 
 TEST_F(WebServerTest, Server)
 {
-    auto server = ServerNG::make_HttpServer(cfg, ctx, std::nullopt, dosGuard, []() {
-
-    });
+    Executor e;
+    auto server = ServerNG::make_HttpServer(cfg, ctx, std::nullopt, dosGuard, e);
 }

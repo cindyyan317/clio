@@ -55,20 +55,18 @@ static std::string defaultResponse =
     " Test</h1><p>This page shows xrpl reporting http(s) "
     "connectivity is working.</p></body></html>";
 
-using Callback = std::function<void()>;
-
 // From Boost Beast examples http_server_flex.cpp
-template <template <class> class Derived, class T>
+template <template <class> class Derived, class Callback>
 class HttpBase : public util::Taggable
 {
     // using Callback = typename Derived::CallbackType;
 
     // Access the derived class, this is part of
     // the Curiously Recurring Template Pattern idiom.
-    Derived<T>&
+    Derived<Callback>&
     derived()
     {
-        return static_cast<Derived<T>&>(*this);
+        return static_cast<Derived<Callback>&>(*this);
     }
 
     struct send_lambda

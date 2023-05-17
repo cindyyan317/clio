@@ -31,10 +31,10 @@
 
 namespace ServerNG {
 
-template <class PlainSession, class SslSession>
-class Detector : public std::enable_shared_from_this<Detector<PlainSession, SslSession>>
+template <template <class> class PlainSession, template <class> class SslSession, class Callback>
+class Detector : public std::enable_shared_from_this<Detector<PlainSession, SslSession, Callback>>
 {
-    using std::enable_shared_from_this<Detector<PlainSession, SslSession>>::shared_from_this;
+    using std::enable_shared_from_this<Detector<PlainSession, SslSession, Callback>>::shared_from_this;
 
     clio::Logger log_{"WebServer"};
     boost::asio::io_context& ioc_;
@@ -92,23 +92,23 @@ public:
             if (!ctx_)
                 return fail(ec, "ssl not supported by this server");
             // Launch SSL session
-            std::make_shared<SslSession>(
+            std::make_shared<SslSession<Callback>>(
                 ioc_, stream_.release_socket(), *ctx_, tagFactory_, dosGuard_, callback_, std::move(buffer_))
                 ->run();
             return;
         }
 
         // Launch plain session
-        std::make_shared<PlainSession>(
+        std::make_shared<PlainSession<Callback>>(
             ioc_, stream_.release_socket(), tagFactory_, dosGuard_, callback_, std::move(buffer_))
             ->run();
     }
 };
 
-template <class PlainSession, class SslSession>
-class Server : public std::enable_shared_from_this<Server<PlainSession, SslSession>>
+template <template <class> class PlainSession, template <class> class SslSession, class Callback>
+class Server : public std::enable_shared_from_this<Server<PlainSession, SslSession, Callback>>
 {
-    using std::enable_shared_from_this<Server<PlainSession, SslSession>>::shared_from_this;
+    using std::enable_shared_from_this<Server<PlainSession, SslSession, Callback>>::shared_from_this;
 
     clio::Logger log_{"WebServer"};
     boost::asio::io_context& ioc_;
@@ -185,7 +185,7 @@ private:
         {
             auto ctxRef = ctx_ ? std::optional<std::reference_wrapper<ssl::context>>{ctx_.value()} : std::nullopt;
             // Create the detector session and run it
-            std::make_shared<Detector<PlainSession, SslSession>>(
+            std::make_shared<Detector<PlainSession, SslSession, Callback>>(
                 ioc_, std::move(socket), ctxRef, tagFactory_, dosGuard_, callback_)
                 ->run();
         }
@@ -195,15 +195,17 @@ private:
     }
 };
 
-using HttpServer = Server<HttpSession<int>, SslHttpSession<int>>;
+template <class Executor>
+using HttpServer = Server<HttpSession, SslHttpSession, Executor>;
 
-static std::shared_ptr<HttpServer>
+template <class Executor>
+static std::shared_ptr<HttpServer<Executor>>
 make_HttpServer(
     clio::Config const& config,
     boost::asio::io_context& ioc,
     std::optional<std::reference_wrapper<ssl::context>> sslCtx,
     clio::DOSGuard& dosGuard,
-    Callback const& callback)
+    Executor const& callback)
 {
     static clio::Logger log{"WebServer"};
     if (!config.contains("server"))
@@ -213,7 +215,7 @@ make_HttpServer(
     auto const address = boost::asio::ip::make_address(serverConfig.value<std::string>("ip"));
     auto const port = serverConfig.value<unsigned short>("port");
 
-    auto server = std::make_shared<HttpServer>(
+    auto server = std::make_shared<HttpServer<Executor>>(
         ioc,
         sslCtx,
         boost::asio::ip::tcp::endpoint{address, port},

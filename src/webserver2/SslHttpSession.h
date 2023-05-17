@@ -28,8 +28,9 @@ using tcp = boost::asio::ip::tcp;
 
 namespace ServerNG {
 // Handles an HTTPS server connection
-template <class T>
-class SslHttpSession : public HttpBase<SslHttpSession, T>, public std::enable_shared_from_this<SslHttpSession<T>>
+template <class Callback>
+class SslHttpSession : public HttpBase<SslHttpSession, Callback>,
+                       public std::enable_shared_from_this<SslHttpSession<Callback>>
 {
     boost::beast::ssl_stream<boost::beast::tcp_stream> stream_;
     std::optional<std::string> ip_;
@@ -44,7 +45,7 @@ public:
         clio::DOSGuard& dosGuard,
         Callback const& callback,
         boost::beast::flat_buffer buffer)
-        : HttpBase<SslHttpSession, T>(ioc, tagFactory, dosGuard, callback, std::move(buffer))
+        : HttpBase<SslHttpSession, Callback>(ioc, tagFactory, dosGuard, callback, std::move(buffer))
         , stream_(std::move(socket), ctx)
     {
         try
