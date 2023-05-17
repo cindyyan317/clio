@@ -53,14 +53,6 @@ protected:
     clio::DOSGuard dosGuard = clio::DOSGuard{cfg, sweepHandler};
 };
 
-class MockSession1
-{
-};
-
-class MockSession2
-{
-};
-
 class EchoExecutor
 {
 public:

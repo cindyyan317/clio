@@ -19,6 +19,10 @@
 
 #pragma once
 
+#include <webserver/DOSGuard.h>
+#include <webserver2/PlainWsSession.h>
+#include <webserver2/SslWsSession.h>
+
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/spawn.hpp>
 #include <boost/asio/strand.hpp>
@@ -41,7 +45,6 @@
 #include <util/Profiler.h>
 #include <util/Taggable.h>
 #include <vector>
-#include <webserver/DOSGuard.h>
 
 // TODO: consider removing those - visible to anyone including this header
 namespace http = boost::beast::http;
@@ -54,6 +57,34 @@ static std::string defaultResponse =
     " Test page for reporting mode</title></head><body><h1>"
     " Test</h1><p>This page shows xrpl reporting http(s) "
     "connectivity is working.</p></body></html>";
+
+void
+make_WebsocketSession(
+    boost::asio::io_context& ioc,
+    boost::beast::tcp_stream stream,
+    std::optional<std::string> const& ip,
+    http::request<http::string_body> req,
+    boost::beast::flat_buffer buffer,
+    util::TagDecoratorFactory const& tagFactory,
+    clio::DOSGuard& dosGuard)
+{
+    std::make_shared<WsUpgrader>(ioc, std::move(stream), ip, tagFactory, dosGuard, std::move(buffer), std::move(req))
+        ->run();
+}
+
+void
+make_WebsocketSession(
+    boost::asio::io_context& ioc,
+    boost::beast::ssl_stream<boost::beast::tcp_stream> stream,
+    std::optional<std::string> const& ip,
+    http::request<http::string_body> req,
+    boost::beast::flat_buffer buffer,
+    util::TagDecoratorFactory const& tagFactory,
+    clio::DOSGuard& dosGuard)
+{
+    std::make_shared<SslWsUpgrader>(ioc, std::move(stream), ip, tagFactory, dosGuard, std::move(buffer), std::move(req))
+        ->run();
+}
 
 // From Boost Beast examples http_server_flex.cpp
 template <template <class> class Derived, class Callback>
@@ -107,6 +138,7 @@ class HttpBase : public util::Taggable
     http::request<http::string_body> req_;
     std::shared_ptr<void> res_;
     clio::DOSGuard& dosGuard_;
+    util::TagDecoratorFactory const& tagFactory_;
     Callback& callback_;
     send_lambda lambda_;
 
@@ -163,6 +195,7 @@ public:
         : Taggable(tagFactory)
         , ioc_(ioc)
         , dosGuard_(dosGuard)
+        , tagFactory_(tagFactory)
         , callback_(callback)
         , lambda_(*this)
         , buffer_(std::move(buffer))
@@ -230,26 +263,21 @@ public:
             return res;
         };
 
-        // if (boost::beast::websocket::is_upgrade(req_))
-        // {
-        //     upgraded_ = true;
-        //     // Disable the timeout.
-        //     // The websocket::stream uses its own timeout settings.
-        //     boost::beast::get_lowest_layer(derived().stream()).expires_never();
-        //     return make_WebsocketSession(
-        //         ioc_,
-        //         derived().releaseStream(),
-        //         derived().ip(),
-        //         std::move(req_),
-        //         std::move(buffer_),
-        //         backend_,
-        //         rpcEngine_,
-        //         subscriptions_,
-        //         balancer_,
-        //         etl_,
-        //         tagFactory_,
-        //         dosGuard_);
-        // }
+        if (boost::beast::websocket::is_upgrade(req_))
+        {
+            upgraded_ = true;
+            // Disable the timeout.
+            // The websocket::stream uses its own timeout settings.
+            boost::beast::get_lowest_layer(derived().stream()).expires_never();
+            return make_WebsocketSession(
+                ioc_,
+                derived().releaseStream(),
+                derived().ip(),
+                std::move(req_),
+                std::move(buffer_),
+                tagFactory_,
+                dosGuard_);
+        }
 
         // to avoid overwhelm work queue, the request limit check should be
         // before posting to queue the web socket creation will be guarded via
@@ -262,6 +290,7 @@ public:
         log_.info() << tag() << "Received request from ip = " << *ip << " - posting to WorkQueue";
 
         auto const& [errCode, result] = callback_(std::move(req_));
+
         lambda_(httpResponse(errCode, "application/json", result));
 
         // auto session = derived().shared_from_this();

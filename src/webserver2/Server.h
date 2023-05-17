@@ -226,4 +226,5 @@ make_HttpServer(
     server->run();
     return server;
 }
+
 }  // namespace ServerNG
