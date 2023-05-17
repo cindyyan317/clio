@@ -18,6 +18,7 @@
 //==============================================================================
 
 #include <util/Fixtures.h>
+#include <util/TestHttpSyncClient.h>
 #include <webserver2/Server.h>
 
 #include <boost/json/parse.hpp>
@@ -28,6 +29,10 @@
 
 constexpr static auto JSONData = R"JSON(
     {
+        "server":{
+            "ip":"0.0.0.0",
+            "port":8888
+        },
         "dos_guard": {
             "max_fetches": 100,
             "sweep_interval": 1,
@@ -38,22 +43,13 @@ constexpr static auto JSONData = R"JSON(
     }
 )JSON";
 
-class WebServerTest : public SyncAsioContextTest
+class WebServerTest : public AsyncAsioContextTest
 {
-public:
-    void
-    SetUp() override
-    {
-    }
-
-    void
-    TearDown() override
-    {
-    }
-
 protected:
     clio::Config cfg{boost::json::parse(JSONData)};
     clio::IntervalSweepHandler sweepHandler = clio::IntervalSweepHandler{cfg, ctx};
+    // DOSGuard will destory before io_context, which means http session will get invalid dosguard
+    // So we need to call stop() before DOSGuard destruction
     clio::DOSGuard dosGuard = clio::DOSGuard{cfg, sweepHandler};
 };
 
@@ -65,12 +61,24 @@ class MockSession2
 {
 };
 
-class Executor
+class EchoExecutor
 {
+public:
+    std::tuple<http::status, std::string>
+    operator()(http::request<http::string_body>&& req)
+    {
+        std::cout << "req:" << req.body() << std::endl;
+        return std::make_tuple(http::status::ok, req.body());
+    }
 };
 
 TEST_F(WebServerTest, Server)
 {
-    Executor e;
+    EchoExecutor e;
     auto server = ServerNG::make_HttpServer(cfg, ctx, std::nullopt, dosGuard, e);
+    auto const res = HttpSyncClient::syncPost("localhost", "8888", "Hello");
+    std::cout << "Received: " << res << std::endl;
+    EXPECT_EQ(res, "Hello");
+    stop();
+    std::cout << "end test" << std::endl;
 }

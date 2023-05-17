@@ -107,7 +107,7 @@ class HttpBase : public util::Taggable
     http::request<http::string_body> req_;
     std::shared_ptr<void> res_;
     clio::DOSGuard& dosGuard_;
-    Callback const& callback_;
+    Callback& callback_;
     send_lambda lambda_;
 
 protected:
@@ -158,7 +158,7 @@ public:
         boost::asio::io_context& ioc,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
-        Callback const& callback,
+        Callback& callback,
         boost::beast::flat_buffer buffer)
         : Taggable(tagFactory)
         , ioc_(ioc)
@@ -261,6 +261,9 @@ public:
 
         log_.info() << tag() << "Received request from ip = " << *ip << " - posting to WorkQueue";
 
+        auto const& [errCode, result] = callback_(std::move(req_));
+        lambda_(httpResponse(errCode, "application/json", result));
+
         // auto session = derived().shared_from_this();
 
         // if (not rpcEngine_->post(
@@ -308,7 +311,7 @@ public:
 
         // We're done with the response so delete it
         res_ = nullptr;
-
+        std::cout << "    onWrite" << std::endl;
         // Read another request
         doRead();
     }

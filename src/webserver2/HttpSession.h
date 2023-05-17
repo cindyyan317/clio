@@ -41,7 +41,7 @@ public:
         tcp::socket&& socket,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
-        Callback const& callback,
+        Callback& callback,
         boost::beast::flat_buffer buffer)
         : HttpBase<HttpSession, Callback>(ioc, tagFactory, dosGuard, callback, std::move(buffer))
         , stream_(std::move(socket))

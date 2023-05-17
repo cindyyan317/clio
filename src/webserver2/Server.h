@@ -42,7 +42,7 @@ class Detector : public std::enable_shared_from_this<Detector<PlainSession, SslS
     std::optional<std::reference_wrapper<ssl::context>> ctx_;
     util::TagDecoratorFactory const& tagFactory_;
     clio::DOSGuard& dosGuard_;
-    Callback const& callback_;
+    Callback& callback_;
     boost::beast::flat_buffer buffer_;
 
 public:
@@ -52,7 +52,7 @@ public:
         std::optional<std::reference_wrapper<ssl::context>> ctx,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
-        Callback const& callback)
+        Callback& callback)
         : ioc_(ioc)
         , stream_(std::move(socket))
         , ctx_(ctx)
@@ -97,7 +97,7 @@ public:
                 ->run();
             return;
         }
-
+        std::cout << "Plain session" << std::endl;
         // Launch plain session
         std::make_shared<PlainSession<Callback>>(
             ioc_, stream_.release_socket(), tagFactory_, dosGuard_, callback_, std::move(buffer_))
@@ -115,7 +115,7 @@ class Server : public std::enable_shared_from_this<Server<PlainSession, SslSessi
     std::optional<std::reference_wrapper<ssl::context>> ctx_;
     util::TagDecoratorFactory tagFactory_;
     clio::DOSGuard& dosGuard_;
-    Callback const& callback_;
+    Callback& callback_;
     tcp::acceptor acceptor_;
 
 public:
@@ -125,7 +125,7 @@ public:
         tcp::endpoint endpoint,
         util::TagDecoratorFactory tagFactory,
         clio::DOSGuard& dosGuard,
-        Callback const& callback)
+        Callback& callback)
         : ioc_(ioc)
         , ctx_(ctx)
         , tagFactory_(std::move(tagFactory))
@@ -205,7 +205,7 @@ make_HttpServer(
     boost::asio::io_context& ioc,
     std::optional<std::reference_wrapper<ssl::context>> sslCtx,
     clio::DOSGuard& dosGuard,
-    Executor const& callback)
+    Executor& callback)
 {
     static clio::Logger log{"WebServer"};
     if (!config.contains("server"))

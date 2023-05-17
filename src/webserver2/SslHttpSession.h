@@ -43,7 +43,7 @@ public:
         ssl::context& ctx,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
-        Callback const& callback,
+        Callback& callback,
         boost::beast::flat_buffer buffer)
         : HttpBase<SslHttpSession, Callback>(ioc, tagFactory, dosGuard, callback, std::move(buffer))
         , stream_(std::move(socket), ctx)
