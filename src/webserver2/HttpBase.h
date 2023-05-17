@@ -58,17 +58,17 @@ static std::string defaultResponse =
 using Callback = std::function<void()>;
 
 // From Boost Beast examples http_server_flex.cpp
-template <class Derived>
+template <template <class> class Derived, class T>
 class HttpBase : public util::Taggable
 {
     // using Callback = typename Derived::CallbackType;
 
     // Access the derived class, this is part of
     // the Curiously Recurring Template Pattern idiom.
-    Derived&
+    Derived<T>&
     derived()
     {
-        return static_cast<Derived&>(*this);
+        return static_cast<Derived<T>&>(*this);
     }
 
     struct send_lambda

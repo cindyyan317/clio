@@ -195,7 +195,7 @@ private:
     }
 };
 
-using HttpServer = Server<HttpSession, SslHttpSession>;
+using HttpServer = Server<HttpSession<int>, SslHttpSession<int>>;
 
 static std::shared_ptr<HttpServer>
 make_HttpServer(

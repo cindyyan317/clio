@@ -28,7 +28,8 @@ using tcp = boost::asio::ip::tcp;
 
 namespace ServerNG {
 // Handles an HTTPS server connection
-class SslHttpSession : public HttpBase<SslHttpSession>, public std::enable_shared_from_this<SslHttpSession>
+template <class T>
+class SslHttpSession : public HttpBase<SslHttpSession, T>, public std::enable_shared_from_this<SslHttpSession<T>>
 {
     boost::beast::ssl_stream<boost::beast::tcp_stream> stream_;
     std::optional<std::string> ip_;
@@ -43,7 +44,7 @@ public:
         clio::DOSGuard& dosGuard,
         Callback const& callback,
         boost::beast::flat_buffer buffer)
-        : HttpBase<SslHttpSession>(ioc, tagFactory, dosGuard, callback, std::move(buffer))
+        : HttpBase<SslHttpSession, T>(ioc, tagFactory, dosGuard, callback, std::move(buffer))
         , stream_(std::move(socket), ctx)
     {
         try
@@ -54,13 +55,13 @@ public:
         {
         }
         if (ip_)
-            HttpBase::dosGuard().increment(*ip_);
+            this->dosGuard().increment(*ip_);
     }
 
     ~SslHttpSession()
     {
-        if (ip_ and not upgraded_)
-            HttpBase::dosGuard().decrement(*ip_);
+        if (ip_ and not this->upgraded_)
+            this->dosGuard().decrement(*ip_);
     }
 
     boost::beast::ssl_stream<boost::beast::tcp_stream>&
@@ -84,7 +85,7 @@ public:
     void
     run()
     {
-        auto self = shared_from_this();
+        auto self = this->shared_from_this();
         // We need to be executing within a strand to perform async operations
         // on the I/O objects in this session.
         net::dispatch(stream_.get_executor(), [self]() {
@@ -104,11 +105,11 @@ public:
     onHandshake(boost::beast::error_code ec, std::size_t bytes_used)
     {
         if (ec)
-            return httpFail(ec, "handshake");
+            return this->httpFail(ec, "handshake");
 
-        buffer_.consume(bytes_used);
+        this->buffer_.consume(bytes_used);
 
-        doRead();
+        this->doRead();
     }
 
     void
@@ -118,14 +119,14 @@ public:
         boost::beast::get_lowest_layer(stream_).expires_after(std::chrono::seconds(30));
 
         // Perform the SSL shutdown
-        stream_.async_shutdown(boost::beast::bind_front_handler(&SslHttpSession::onShutdown, shared_from_this()));
+        stream_.async_shutdown(boost::beast::bind_front_handler(&SslHttpSession::onShutdown, this->shared_from_this()));
     }
 
     void
     onShutdown(boost::beast::error_code ec)
     {
         if (ec)
-            return httpFail(ec, "shutdown");
+            return this->httpFail(ec, "shutdown");
 
         // At this point the connection is closed gracefully
     }

@@ -28,7 +28,8 @@ using tcp = boost::asio::ip::tcp;
 
 namespace ServerNG {
 // Handles an HTTP server connection
-class HttpSession : public HttpBase<HttpSession>, public std::enable_shared_from_this<HttpSession>
+template <class T>
+class HttpSession : public HttpBase<HttpSession, T>, public std::enable_shared_from_this<HttpSession<T>>
 {
     boost::beast::tcp_stream stream_;
     std::optional<std::string> ip_;
@@ -42,7 +43,7 @@ public:
         clio::DOSGuard& dosGuard,
         Callback const& callback,
         boost::beast::flat_buffer buffer)
-        : HttpBase<HttpSession>(ioc, tagFactory, dosGuard, callback, std::move(buffer)), stream_(std::move(socket))
+        : HttpBase<HttpSession, T>(ioc, tagFactory, dosGuard, callback, std::move(buffer)), stream_(std::move(socket))
     {
         try
         {
@@ -52,13 +53,13 @@ public:
         {
         }
         if (ip_)
-            HttpBase::dosGuard().increment(*ip_);
+            this->dosGuard().increment(*ip_);
     }
 
     ~HttpSession()
     {
-        if (ip_ and not upgraded_)
-            HttpBase::dosGuard().decrement(*ip_);
+        if (ip_ and not this->upgraded_)
+            this->dosGuard().decrement(*ip_);
     }
 
     boost::beast::tcp_stream&
@@ -87,7 +88,9 @@ public:
         // on the I/O objects in this HttpSession. Although not strictly
         // necessary for single-threaded contexts, this example code is written
         // to be thread-safe by default.
-        net::dispatch(stream_.get_executor(), boost::beast::bind_front_handler(&HttpBase::doRead, shared_from_this()));
+        net::dispatch(
+            stream_.get_executor(),
+            boost::beast::bind_front_handler(&HttpBase<HttpSession, T>::doRead, this->shared_from_this()));
     }
 
     void
