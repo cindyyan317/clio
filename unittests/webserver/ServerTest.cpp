@@ -43,19 +43,48 @@ constexpr static auto JSONData = R"JSON(
     }
 )JSON";
 
-class WebServerTest : public AsyncAsioContextTest
+class WebServerTest : public NoLoggerFixture
 {
 protected:
-    void
-    TearDown() override
+    WebServerTest()
     {
-        stop();
+        work.emplace(ctx);  // make sure ctx does not stop on its own
+        runner.emplace([this] { ctx.run(); });
     }
+
+    ~WebServerTest()
+    {
+        work.reset();
+        ctx.stop();
+        if (runner->joinable())
+            runner->join();
+    }
+
+    // void
+    // stop()
+    // {
+    //     work.reset();
+    //     ctx.stop();
+    //     if (runner->joinable())
+    //         runner->join();
+    // }
+
+    // void
+    // TearDown() override
+    // {
+    //     stop();
+    // }
+    // this ctx is for dos timer
+    boost::asio::io_context ctxSync;
     clio::Config cfg{boost::json::parse(JSONData)};
-    clio::IntervalSweepHandler sweepHandler = clio::IntervalSweepHandler{cfg, ctx};
-    // DOSGuard will destory before io_context, which means http session will get invalid dosguard
-    // So we need to call stop() before DOSGuard destruction
+    clio::IntervalSweepHandler sweepHandler = clio::IntervalSweepHandler{cfg, ctxSync};
     clio::DOSGuard dosGuard = clio::DOSGuard{cfg, sweepHandler};
+    // this ctx is for http server
+    boost::asio::io_context ctx;
+
+private:
+    std::optional<boost::asio::io_service::work> work;
+    std::optional<std::thread> runner;
 };
 
 class EchoExecutor

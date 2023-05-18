@@ -139,6 +139,7 @@ protected:
         if (!ec_ && ec != boost::asio::error::operation_aborted)
         {
             ec_ = ec;
+            std::cout << "wsFail" << what << std::endl;
             perfLog_.info() << tag() << ": " << what << ": " << ec.message();
             boost::beast::get_lowest_layer(derived().ws()).socket().close(ec);
 
@@ -168,6 +169,7 @@ public:
 
     virtual ~WsSession()
     {
+        std::cout << "session closed" << std::endl;
         perfLog_.info() << tag() << "session closed";
         if (ip_)
             dosGuard_.decrement(*ip_);
