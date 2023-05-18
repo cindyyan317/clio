@@ -106,10 +106,10 @@ public:
 class SubscriptionManager;
 class ETLLoadBalancer;
 
-template <typename Derived>
-class WsSession : public WsBase, public std::enable_shared_from_this<WsSession<Derived>>
+template <template <class> class Derived, class Callback>
+class WsSession : public WsBase, public std::enable_shared_from_this<WsSession<Derived, Callback>>
 {
-    using std::enable_shared_from_this<WsSession<Derived>>::shared_from_this;
+    using std::enable_shared_from_this<WsSession<Derived, Callback>>::shared_from_this;
 
     boost::beast::flat_buffer buffer_;
 
@@ -128,6 +128,7 @@ class WsSession : public WsBase, public std::enable_shared_from_this<WsSession<D
 
     bool sending_ = false;
     std::queue<std::shared_ptr<Message>> messages_;
+    Callback callback_;
 
 protected:
     std::optional<std::string> ip_;
@@ -152,12 +153,14 @@ public:
         std::optional<std::string> ip,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
+        Callback callback,
         boost::beast::flat_buffer&& buffer)
         : WsBase(tagFactory)
         , buffer_(std::move(buffer))
         , ioc_(ioc)
         , tagFactory_(tagFactory)
         , dosGuard_(dosGuard)
+        , callback_(callback)
         , ip_(ip)
     {
         perfLog_.info() << tag() << "session created";
@@ -170,10 +173,10 @@ public:
             dosGuard_.decrement(*ip_);
     }
 
-    Derived&
+    Derived<Callback>&
     derived()
     {
-        return static_cast<Derived&>(*this);
+        return static_cast<Derived<Callback>&>(*this);
     }
 
     void
@@ -428,6 +431,8 @@ public:
             //         },
             //         ip.value()))
             //     sendError(RPC::RippledError::rpcTOO_BUSY, id, request);
+            auto [code, body] = callback_(std::move(request));
+            send(std::move(body));
         }
 
         doRead();

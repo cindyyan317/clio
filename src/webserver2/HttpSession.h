@@ -103,5 +103,20 @@ public:
 
         // At this point the connection is closed gracefully
     }
+
+    void
+    upgrade()
+    {
+        std::make_shared<WsUpgrader<Callback>>(
+            this->ioc_,
+            std::move(stream_),
+            ip_,
+            this->tagFactory_,
+            this->dosGuard_,
+            this->callback_,
+            std::move(this->buffer_),
+            std::move(this->req_))
+            ->run();
+    }
 };
 }  // namespace ServerNG

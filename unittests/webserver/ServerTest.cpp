@@ -46,6 +46,11 @@ constexpr static auto JSONData = R"JSON(
 class WebServerTest : public AsyncAsioContextTest
 {
 protected:
+    void
+    TearDown() override
+    {
+        stop();
+    }
     clio::Config cfg{boost::json::parse(JSONData)};
     clio::IntervalSweepHandler sweepHandler = clio::IntervalSweepHandler{cfg, ctx};
     // DOSGuard will destory before io_context, which means http session will get invalid dosguard
@@ -57,20 +62,32 @@ class EchoExecutor
 {
 public:
     std::tuple<http::status, std::string>
-    operator()(http::request<http::string_body>&& req)
+    operator()(boost::json::object&& req)
     {
-        std::cout << "req:" << req.body() << std::endl;
-        return std::make_tuple(http::status::ok, req.body());
+        std::cout << "req:" << req << std::endl;
+        return std::make_tuple(http::status::ok, boost::json::serialize(req));
     }
 };
 
-TEST_F(WebServerTest, Server)
+TEST_F(WebServerTest, Http)
 {
     EchoExecutor e;
     auto server = ServerNG::make_HttpServer(cfg, ctx, std::nullopt, dosGuard, e);
-    auto const res = HttpSyncClient::syncPost("localhost", "8888", "Hello");
+    auto const res = HttpSyncClient::syncPost("localhost", "8888", R"({"Hello":1})");
     std::cout << "Received: " << res << std::endl;
-    EXPECT_EQ(res, "Hello");
-    stop();
+    EXPECT_EQ(res, R"({"Hello":1})");
+    std::cout << "end test" << std::endl;
+}
+
+TEST_F(WebServerTest, Ws)
+{
+    EchoExecutor e;
+    auto server = ServerNG::make_HttpServer(cfg, ctx, std::nullopt, dosGuard, e);
+    WebSocketSyncClient wsClient;
+    wsClient.connect("localhost", "8888");
+    auto const res = wsClient.syncPost(R"({"Hello":1})");
+    std::cout << "Received: " << res << std::endl;
+    EXPECT_EQ(res, R"({"Hello":1})");
+    wsClient.disconnect();
     std::cout << "end test" << std::endl;
 }

@@ -98,7 +98,7 @@ public:
             self->stream_.async_handshake(
                 ssl::stream_base::server,
                 self->buffer_.data(),
-                boost::beast::bind_front_handler(&SslHttpSession::onHandshake, self));
+                boost::beast::bind_front_handler(&SslHttpSession<Callback>::onHandshake, self));
         });
     }
 
@@ -130,6 +130,21 @@ public:
             return this->httpFail(ec, "shutdown");
 
         // At this point the connection is closed gracefully
+    }
+
+    void
+    upgrade()
+    {
+        std::make_shared<SslWsUpgrader<Callback>>(
+            this->ioc_,
+            std::move(stream_),
+            this->ip_,
+            this->tagFactory_,
+            this->dosGuard_,
+            this->callback_,
+            std::move(this->buffer_),
+            std::move(this->req_))
+            ->run();
     }
 };
 }  // namespace ServerNG

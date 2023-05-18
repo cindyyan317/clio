@@ -18,6 +18,7 @@
 //==============================================================================
 
 #pragma once
+
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/beast/http.hpp>
@@ -62,6 +63,60 @@ struct HttpSyncClient
         stream.socket().shutdown(tcp::socket::shutdown_both, ec);
 
         return std::string(res.body());
-        ;
+    }
+};
+
+class WebSocketSyncClient
+{
+    // The io_context is required for all I/O
+    net::io_context ioc_;
+
+    // These objects perform our I/O
+    tcp::resolver resolver_{ioc_};
+    websocket::stream<tcp::socket> ws_{ioc_};
+
+public:
+    void
+    connect(std::string const& host, std::string const& port)
+    {
+        // Look up the domain name
+        auto const results = resolver_.resolve(host, port);
+
+        // Make the connection on the IP address we get from a lookup
+        auto const ep = net::connect(ws_.next_layer(), results);
+
+        // Update the host_ string. This will provide the value of the
+        // Host HTTP header during the WebSocket handshake.
+        // See https://tools.ietf.org/html/rfc7230#section-5.4
+        auto const hostPort = host + ':' + std::to_string(ep.port());
+
+        // Set a decorator to change the User-Agent of the handshake
+        ws_.set_option(websocket::stream_base::decorator([](websocket::request_type& req) {
+            req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " websocket-client-coro");
+        }));
+
+        // Perform the websocket handshake
+        ws_.handshake(hostPort, "/");
+    }
+
+    void
+    disconnect()
+    {
+        ws_.close(websocket::close_code::normal);
+    }
+
+    std::string
+    syncPost(std::string const& body)
+    {
+        // Send the message
+        ws_.write(net::buffer(std::string(body)));
+
+        // This buffer will hold the incoming message
+        boost::beast::flat_buffer buffer;
+
+        // Read a message into our buffer
+        ws_.read(buffer);
+
+        return boost::beast::buffers_to_string(buffer.data());
     }
 };

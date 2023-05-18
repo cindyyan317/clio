@@ -58,34 +58,6 @@ static std::string defaultResponse =
     " Test</h1><p>This page shows xrpl reporting http(s) "
     "connectivity is working.</p></body></html>";
 
-void
-make_WebsocketSession(
-    boost::asio::io_context& ioc,
-    boost::beast::tcp_stream stream,
-    std::optional<std::string> const& ip,
-    http::request<http::string_body> req,
-    boost::beast::flat_buffer buffer,
-    util::TagDecoratorFactory const& tagFactory,
-    clio::DOSGuard& dosGuard)
-{
-    std::make_shared<WsUpgrader>(ioc, std::move(stream), ip, tagFactory, dosGuard, std::move(buffer), std::move(req))
-        ->run();
-}
-
-void
-make_WebsocketSession(
-    boost::asio::io_context& ioc,
-    boost::beast::ssl_stream<boost::beast::tcp_stream> stream,
-    std::optional<std::string> const& ip,
-    http::request<http::string_body> req,
-    boost::beast::flat_buffer buffer,
-    util::TagDecoratorFactory const& tagFactory,
-    clio::DOSGuard& dosGuard)
-{
-    std::make_shared<SslWsUpgrader>(ioc, std::move(stream), ip, tagFactory, dosGuard, std::move(buffer), std::move(req))
-        ->run();
-}
-
 // From Boost Beast examples http_server_flex.cpp
 template <template <class> class Derived, class Callback>
 class HttpBase : public util::Taggable
@@ -134,12 +106,7 @@ class HttpBase : public util::Taggable
     };
 
     boost::system::error_code ec_;
-    boost::asio::io_context& ioc_;
-    http::request<http::string_body> req_;
     std::shared_ptr<void> res_;
-    clio::DOSGuard& dosGuard_;
-    util::TagDecoratorFactory const& tagFactory_;
-    Callback& callback_;
     send_lambda lambda_;
 
 protected:
@@ -147,6 +114,11 @@ protected:
     clio::Logger perfLog_{"Performance"};
     boost::beast::flat_buffer buffer_;
     bool upgraded_ = false;
+    boost::asio::io_context& ioc_;
+    http::request<http::string_body> req_;
+    clio::DOSGuard& dosGuard_;
+    util::TagDecoratorFactory const& tagFactory_;
+    Callback& callback_;
 
     bool
     dead()
@@ -193,12 +165,12 @@ public:
         Callback& callback,
         boost::beast::flat_buffer buffer)
         : Taggable(tagFactory)
+        , lambda_(*this)
+        , buffer_(std::move(buffer))
         , ioc_(ioc)
         , dosGuard_(dosGuard)
         , tagFactory_(tagFactory)
         , callback_(callback)
-        , lambda_(*this)
-        , buffer_(std::move(buffer))
     {
         perfLog_.debug() << tag() << "http session created";
     }
@@ -269,14 +241,15 @@ public:
             // Disable the timeout.
             // The websocket::stream uses its own timeout settings.
             boost::beast::get_lowest_layer(derived().stream()).expires_never();
-            return make_WebsocketSession(
-                ioc_,
-                derived().releaseStream(),
-                derived().ip(),
-                std::move(req_),
-                std::move(buffer_),
-                tagFactory_,
-                dosGuard_);
+            // return make_WebsocketSession(
+            //     ioc_,
+            //     derived().releaseStream(),
+            //     derived().ip(),
+            //     std::move(req_),
+            //     std::move(buffer_),
+            //     tagFactory_,
+            //     dosGuard_);
+            return derived().upgrade();
         }
 
         // to avoid overwhelm work queue, the request limit check should be
@@ -289,9 +262,20 @@ public:
 
         log_.info() << tag() << "Received request from ip = " << *ip << " - posting to WorkQueue";
 
-        auto const& [errCode, result] = callback_(std::move(req_));
-
-        lambda_(httpResponse(errCode, "application/json", result));
+        try
+        {
+            auto request = boost::json::parse(req_.body()).as_object();
+            auto const& [errCode, result] = callback_(std::move(request));
+            lambda_(httpResponse(errCode, "application/json", result));
+            return;
+        }
+        catch (std::runtime_error const& e)
+        {
+            return lambda_(httpResponse(
+                http::status::ok,
+                "application/json",
+                boost::json::serialize(RPC::makeError(RPC::RippledError::rpcBAD_SYNTAX))));
+        }
 
         // auto session = derived().shared_from_this();
 

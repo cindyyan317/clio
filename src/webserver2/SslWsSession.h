@@ -34,7 +34,9 @@ namespace websocket = boost::beast::websocket;
 using tcp = boost::asio::ip::tcp;
 
 namespace ServerNG {
-class SslWsSession : public WsSession<SslWsSession>
+
+template <class Callback>
+class SslWsSession : public WsSession<SslWsSession, Callback>
 {
     boost::beast::websocket::stream<boost::beast::ssl_stream<boost::beast::tcp_stream>> ws_;
 
@@ -46,8 +48,10 @@ public:
         std::optional<std::string> ip,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
+        Callback& callback,
         boost::beast::flat_buffer&& b)
-        : WsSession(ioc, ip, tagFactory, dosGuard, std::move(b)), ws_(std::move(stream))
+        : WsSession<SslWsSession, Callback>(ioc, ip, tagFactory, dosGuard, callback, std::move(b))
+        , ws_(std::move(stream))
     {
     }
 
@@ -60,11 +64,12 @@ public:
     std::optional<std::string>
     ip()
     {
-        return ip_;
+        return this->ip_;
     }
 };
 
-class SslWsUpgrader : public std::enable_shared_from_this<SslWsUpgrader>
+template <class Callback>
+class SslWsUpgrader : public std::enable_shared_from_this<SslWsUpgrader<Callback>>
 {
     boost::asio::io_context& ioc_;
     boost::beast::ssl_stream<boost::beast::tcp_stream> https_;
@@ -73,32 +78,17 @@ class SslWsUpgrader : public std::enable_shared_from_this<SslWsUpgrader>
     std::optional<std::string> ip_;
     util::TagDecoratorFactory const& tagFactory_;
     clio::DOSGuard& dosGuard_;
+    Callback callback_;
     http::request<http::string_body> req_;
 
 public:
-    SslWsUpgrader(
-        boost::asio::io_context& ioc,
-        std::optional<std::string> ip,
-        boost::asio::ip::tcp::socket&& socket,
-        ssl::context& ctx,
-        util::TagDecoratorFactory const& tagFactory,
-        clio::DOSGuard& dosGuard,
-        boost::beast::flat_buffer&& b)
-        : ioc_(ioc)
-        , https_(std::move(socket), ctx)
-        , buffer_(std::move(b))
-        , ip_(ip)
-        , tagFactory_(tagFactory)
-        , dosGuard_(dosGuard)
-    {
-    }
-
     SslWsUpgrader(
         boost::asio::io_context& ioc,
         boost::beast::ssl_stream<boost::beast::tcp_stream> stream,
         std::optional<std::string> ip,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
+        Callback callback,
         boost::beast::flat_buffer&& b,
         http::request<http::string_body> req)
         : ioc_(ioc)
@@ -107,6 +97,7 @@ public:
         , ip_(ip)
         , tagFactory_(tagFactory)
         , dosGuard_(dosGuard)
+        , callback_(callback)
         , req_(std::move(req))
     {
     }
@@ -120,7 +111,8 @@ public:
         boost::beast::get_lowest_layer(https_).expires_after(std::chrono::seconds(30));
 
         net::dispatch(
-            https_.get_executor(), boost::beast::bind_front_handler(&SslWsUpgrader::doUpgrade, shared_from_this()));
+            https_.get_executor(),
+            boost::beast::bind_front_handler(&SslWsUpgrader<Callback>::doUpgrade, this->shared_from_this()));
     }
 
 private:
@@ -152,7 +144,8 @@ private:
         // The websocket::stream uses its own timeout settings.
         boost::beast::get_lowest_layer(https_).expires_never();
 
-        std::make_shared<SslWsSession>(ioc_, std::move(https_), ip_, tagFactory_, dosGuard_, std::move(buffer_))
+        std::make_shared<SslWsSession<Callback>>(
+            this->ioc_, std::move(https_), ip_, this->tagFactory_, this->dosGuard_, this->callback_, std::move(buffer_))
             ->run(std::move(req_));
     }
 };

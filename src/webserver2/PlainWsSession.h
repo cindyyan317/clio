@@ -35,7 +35,8 @@ using tcp = boost::asio::ip::tcp;
 
 namespace ServerNG {
 // Echoes back all received WebSocket messages
-class PlainWsSession : public WsSession<PlainWsSession>
+template <class Callback>
+class PlainWsSession : public WsSession<PlainWsSession, Callback>
 {
     websocket::stream<boost::beast::tcp_stream> ws_;
 
@@ -47,8 +48,10 @@ public:
         std::optional<std::string> ip,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
+        Callback& callback,
         boost::beast::flat_buffer&& buffer)
-        : WsSession(ioc, ip, tagFactory, dosGuard, std::move(buffer)), ws_(std::move(socket))
+        : WsSession<PlainWsSession, Callback>(ioc, ip, tagFactory, dosGuard, callback, std::move(buffer))
+        , ws_(std::move(socket))
     {
     }
 
@@ -58,16 +61,18 @@ public:
         return ws_;
     }
 
+    //??? do we need this
     std::optional<std::string>
     ip()
     {
-        return ip_;
+        return this->ip_;
     }
 
     ~PlainWsSession() = default;
 };
 
-class WsUpgrader : public std::enable_shared_from_this<WsUpgrader>
+template <class Callback>
+class WsUpgrader : public std::enable_shared_from_this<WsUpgrader<Callback>>
 {
     boost::asio::io_context& ioc_;
     boost::beast::tcp_stream http_;
@@ -77,30 +82,16 @@ class WsUpgrader : public std::enable_shared_from_this<WsUpgrader>
     clio::DOSGuard& dosGuard_;
     http::request<http::string_body> req_;
     std::optional<std::string> ip_;
+    Callback callback_;
 
 public:
-    WsUpgrader(
-        boost::asio::io_context& ioc,
-        boost::asio::ip::tcp::socket&& socket,
-        std::optional<std::string> ip,
-        util::TagDecoratorFactory const& tagFactory,
-        clio::DOSGuard& dosGuard,
-        boost::beast::flat_buffer&& b)
-        : ioc_(ioc)
-        , http_(std::move(socket))
-        , buffer_(std::move(b))
-        , tagFactory_(tagFactory)
-        , dosGuard_(dosGuard)
-        , ip_(ip)
-    {
-    }
-
     WsUpgrader(
         boost::asio::io_context& ioc,
         boost::beast::tcp_stream&& stream,
         std::optional<std::string> ip,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
+        Callback& callback,
         boost::beast::flat_buffer&& b,
         http::request<http::string_body> req)
         : ioc_(ioc)
@@ -110,6 +101,7 @@ public:
         , dosGuard_(dosGuard)
         , req_(std::move(req))
         , ip_(ip)
+        , callback_(callback)
     {
     }
 
@@ -122,7 +114,8 @@ public:
         // thread-safe by default.
 
         net::dispatch(
-            http_.get_executor(), boost::beast::bind_front_handler(&WsUpgrader::doUpgrade, shared_from_this()));
+            http_.get_executor(),
+            boost::beast::bind_front_handler(&WsUpgrader<Callback>::doUpgrade, this->shared_from_this()));
     }
 
 private:
@@ -152,7 +145,8 @@ private:
         // The websocket::stream uses its own timeout settings.
         boost::beast::get_lowest_layer(http_).expires_never();
 
-        std::make_shared<PlainWsSession>(ioc_, http_.release_socket(), ip_, tagFactory_, dosGuard_, std::move(buffer_))
+        std::make_shared<PlainWsSession<Callback>>(
+            ioc_, http_.release_socket(), ip_, tagFactory_, dosGuard_, callback_, std::move(buffer_))
             ->run(std::move(req_));
     }
 };
