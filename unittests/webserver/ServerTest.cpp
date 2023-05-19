@@ -138,10 +138,22 @@ class EchoExecutor
 {
 public:
     void
-    operator()(boost::json::object&& req, std::function<void(std::string, http::status)> cb)
+    operator()(
+        boost::json::object&& req,
+        std::function<void(std::string, http::status)> cb,
+        std::shared_ptr<ServerNG::WsBase> ws,
+        util::TagDecoratorFactory const& tagFactory,
+        std::string const& ip,
+        clio::Logger& perfLog,
+        util::Taggable const& taggable)
     {
         std::cout << "req:" << req << std::endl;
         cb(boost::json::serialize(req), http::status::ok);
+    }
+
+    void
+    operator()(boost::beast::error_code ec, std::shared_ptr<ServerNG::WsBase> ws)
+    {
     }
 };
 

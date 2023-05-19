@@ -19,32 +19,22 @@
 
 #pragma once
 
-#include <webserver/DOSGuard.h>
-#include <webserver2/PlainWsSession.h>
-#include <webserver2/SslWsSession.h>
-
-#include <boost/asio/dispatch.hpp>
-#include <boost/asio/spawn.hpp>
-#include <boost/asio/strand.hpp>
-#include <boost/beast/core.hpp>
-#include <boost/beast/http.hpp>
-#include <boost/beast/ssl.hpp>
-#include <boost/beast/version.hpp>
-#include <boost/config.hpp>
-#include <boost/json.hpp>
-#include <algorithm>
-#include <cstdlib>
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <string>
-#include <thread>
-
 #include <log/Logger.h>
 #include <main/Build.h>
 #include <util/Profiler.h>
 #include <util/Taggable.h>
-#include <vector>
+#include <webserver/DOSGuard.h>
+#include <webserver2/PlainWsSession.h>
+#include <webserver2/SslWsSession.h>
+
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/ssl.hpp>
+#include <boost/config.hpp>
+#include <boost/json.hpp>
+
+#include <memory>
+#include <string>
 
 // TODO: consider removing those - visible to anyone including this header
 namespace http = boost::beast::http;
@@ -225,6 +215,15 @@ public:
             return;
         }
 
+        if (boost::beast::websocket::is_upgrade(req_))
+        {
+            upgraded_ = true;
+            // Disable the timeout.
+            // The websocket::stream uses its own timeout settings.
+            boost::beast::get_lowest_layer(derived().stream()).expires_never();
+            return derived().upgrade();
+        }
+
         auto const httpResponse = [&](http::status status, std::string content_type, std::string message) {
             http::response<http::string_body> res{status, req_.version()};
             res.set(http::field::server, "clio-server-" + Build::getClioVersionString());
@@ -235,23 +234,6 @@ public:
             return res;
         };
 
-        if (boost::beast::websocket::is_upgrade(req_))
-        {
-            upgraded_ = true;
-            // Disable the timeout.
-            // The websocket::stream uses its own timeout settings.
-            boost::beast::get_lowest_layer(derived().stream()).expires_never();
-            // return make_WebsocketSession(
-            //     ioc_,
-            //     derived().releaseStream(),
-            //     derived().ip(),
-            //     std::move(req_),
-            //     std::move(buffer_),
-            //     tagFactory_,
-            //     dosGuard_);
-            return derived().upgrade();
-        }
-
         // to avoid overwhelm work queue, the request limit check should be
         // before posting to queue the web socket creation will be guarded via
         // connection limit
@@ -261,14 +243,37 @@ public:
         }
 
         log_.info() << tag() << "Received request from ip = " << *ip << " - posting to WorkQueue";
+        if (req_.method() == http::verb::get && req_.body() == "")
+        {
+            return lambda_(httpResponse(http::status::ok, "text/html", defaultResponse));
+        }
+        if (req_.method() != http::verb::post)
+        {
+            return lambda_(httpResponse(http::status::bad_request, "text/html", "Expected a POST request"));
+        }
 
+        perfLog_.debug() << tag() << "http received request from work queue: " << req_.body();
         try
         {
             auto request = boost::json::parse(req_.body()).as_object();
             callback_(
-                std::move(request), [&, self = derived().shared_from_this()](auto const result, auto const errCode) {
+                std::move(request),
+                [&, self = derived().shared_from_this()](auto result, auto errCode) {
+                    if (!self->dosGuard_.add(*ip, result.size()))
+                    {
+                        auto jsonResponse = boost::json::parse(result).as_object();
+                        jsonResponse["warning"] = "load";
+                        jsonResponse["warnings"].as_array().push_back(RPC::makeWarning(RPC::warnRPC_RATE_LIMIT));
+                        // reserialize when we need to include this warning
+                        result = boost::json::serialize(jsonResponse);
+                    }
                     self->lambda_(httpResponse(errCode, "application/json", result));
-                });
+                },
+                nullptr,
+                tagFactory_.with(std::cref(tag())),
+                *ip,
+                perfLog_,
+                *this);
             return;
         }
         catch (std::runtime_error const& e)
@@ -278,35 +283,6 @@ public:
                 "application/json",
                 boost::json::serialize(RPC::makeError(RPC::RippledError::rpcBAD_SYNTAX))));
         }
-
-        // auto session = derived().shared_from_this();
-
-        // if (not rpcEngine_->post(
-        //         [this, ip, session](boost::asio::yield_context yield) {
-        //             handleRequest(
-        //                 yield,
-        //                 std::move(req_),
-        //                 lambda_,
-        //                 backend_,
-        //                 rpcEngine_,
-        //                 subscriptions_,
-        //                 balancer_,
-        //                 etl_,
-        //                 tagFactory_,
-        //                 dosGuard_,
-        //                 *ip,
-        //                 session,
-        //                 perfLog_);
-        //         },
-        //         ip.value()))
-        // {
-        //     // Non-whitelist connection rejected due to full connection
-        //     // queue
-        //     lambda_(httpResponse(
-        //         http::status::ok,
-        //         "application/json",
-        //         boost::json::serialize(RPC::makeError(RPC::RippledError::rpcTOO_BUSY))));
-        // }
     }
 
     void
@@ -326,7 +302,6 @@ public:
 
         // We're done with the response so delete it
         res_ = nullptr;
-        std::cout << "    onWrite" << std::endl;
         // Read another request
         doRead();
     }

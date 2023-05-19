@@ -27,8 +27,6 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
 
-#include <iostream>
-
 namespace ServerNG {
 
 template <template <class> class PlainSession, template <class> class SslSession, class Callback>

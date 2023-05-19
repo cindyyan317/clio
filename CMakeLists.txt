@@ -157,7 +157,8 @@ if(BUILD_TESTS)
     unittests/backend/cassandra/SettingsProviderTests.cpp
     unittests/backend/cassandra/ExecutionStrategyTests.cpp
     unittests/backend/cassandra/AsyncExecutorTests.cpp
-    unittests/webserver/ServerTest.cpp)
+    unittests/webserver/ServerTest.cpp
+    unittests/webserver/RPCExecutorTest.cpp)
   include(CMake/deps/gtest.cmake)
 
   # test for dwarf5 bug on ci 

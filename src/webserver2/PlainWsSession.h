@@ -19,12 +19,6 @@
 
 #pragma once
 
-#include <boost/asio/dispatch.hpp>
-#include <boost/beast/core.hpp>
-#include <boost/beast/ssl.hpp>
-#include <boost/beast/websocket.hpp>
-#include <boost/beast/websocket/ssl.hpp>
-
 #include <webserver2/WsBase.h>
 
 namespace http = boost::beast::http;

@@ -19,16 +19,8 @@
 
 #pragma once
 
-#include <backend/BackendInterface.h>
-#include <etl/ETLSource.h>
-#include <etl/ReportingETL.h>
 #include <log/Logger.h>
-#include <rpc/Counters.h>
-#include <rpc/Factories.h>
-#include <rpc/RPCEngine.h>
-#include <rpc/WorkQueue.h>
 #include <subscriptions/Message.h>
-#include <subscriptions/SubscriptionManager.h>
 #include <util/Profiler.h>
 #include <util/Taggable.h>
 #include <webserver/DOSGuard.h>
@@ -47,13 +39,6 @@ namespace websocket = boost::beast::websocket;
 using tcp = boost::asio::ip::tcp;
 
 namespace ServerNG {
-
-inline void
-logError(boost::beast::error_code ec, char const* what)
-{
-    static clio::Logger log{"WebServer"};
-    log.debug() << what << ": " << ec.message() << "\n";
-}
 
 inline boost::json::object
 getDefaultWsResponse(boost::json::value const& id)
@@ -103,9 +88,6 @@ public:
     }
 };
 
-class SubscriptionManager;
-class ETLLoadBalancer;
-
 template <template <class> class Derived, class Callback>
 class WsSession : public WsBase, public std::enable_shared_from_this<WsSession<Derived, Callback>>
 {
@@ -142,7 +124,7 @@ protected:
             std::cout << "wsFail" << what << std::endl;
             perfLog_.info() << tag() << ": " << what << ": " << ec.message();
             boost::beast::get_lowest_layer(derived().ws()).socket().close(ec);
-
+            callback_(ec, derived().shared_from_this());
             // if (auto manager = subscriptions_.lock(); manager)
             //     manager->cleanup(derived().shared_from_this());
         }
@@ -376,7 +358,6 @@ public:
         if (ec)
             return wsFail(ec, "read");
 
-        std::string msg{static_cast<char const*>(buffer_.data().data()), buffer_.size()};
         auto ip = derived().ip();
 
         if (!ip)
@@ -397,6 +378,8 @@ public:
             send(std::move(responseStr));
         };
 
+        std::string msg{static_cast<char const*>(buffer_.data().data()), buffer_.size()};
+
         boost::json::value raw = [](std::string const&& msg) {
             try
             {
@@ -410,7 +393,6 @@ public:
 
         boost::json::object request;
         // dosGuard served request++ and check ip address
-        // dosGuard should check before any request, even invalid request
         if (!dosGuard_.request(*ip))
         {
             sendError(RPC::RippledError::rpcSLOW_DOWN, nullptr, request);
@@ -434,7 +416,13 @@ public:
             //         ip.value()))
             //     sendError(RPC::RippledError::rpcTOO_BUSY, id, request);
             callback_(
-                std::move(request), [self = shared_from_this()](auto msg, auto _) { self->send(std::move(msg)); });
+                std::move(request),
+                [self = shared_from_this()](auto msg, auto _) { self->send(std::move(msg)); },
+                shared_from_this(),
+                tagFactory_.with(std::cref(tag())),
+                *ip,
+                perfLog_,
+                *this);
         }
 
         doRead();
