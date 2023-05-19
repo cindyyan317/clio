@@ -55,13 +55,6 @@ public:
         return ws_;
     }
 
-    //??? do we need this
-    std::optional<std::string>
-    ip()
-    {
-        return this->ip_;
-    }
-
     ~PlainWsSession() = default;
 };
 

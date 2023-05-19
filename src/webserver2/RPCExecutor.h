@@ -48,17 +48,15 @@ public:
         boost::json::object&& req,
         std::function<void(std::string, http::status)> cb,
         std::shared_ptr<ServerNG::WsBase> ws,
-        std::string const& clientIP,
-        clio::Logger& perfLog,
-        util::Taggable const& taggable)
+        ServerNG::Connection const& conn)
     {
         cb(boost::json::serialize(req), http::status::ok);
 
         if (!rpcEngine_->post(
                 [&, this](boost::asio::yield_context yc) {
-                    handleRequest(yc, std::move(req), cb, ws, clientIP, perfLog, taggable);
+                    handleRequest(yc, std::move(req), cb, ws, *(conn.ipMaybe), conn.perfLog, conn);
                 },
-                clientIP))
+                *(conn.ipMaybe)))
         {
             cb(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcTOO_BUSY)), http::status::ok);
         }

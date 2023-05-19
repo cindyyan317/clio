@@ -22,8 +22,8 @@
 #include <log/Logger.h>
 #include <subscriptions/Message.h>
 #include <util/Profiler.h>
-#include <util/Taggable.h>
 #include <webserver/DOSGuard.h>
+#include <webserver2/Connect.h>
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
@@ -53,15 +53,14 @@ getDefaultWsResponse(boost::json::value const& id)
     return defaultResp;
 }
 
-class WsBase : public util::Taggable
+class WsBase : public Connection
 {
 protected:
-    clio::Logger log_{"WebServer"};
-    clio::Logger perfLog_{"Performance"};
     boost::system::error_code ec_;
 
 public:
-    explicit WsBase(util::TagDecoratorFactory const& tagFactory) : Taggable{tagFactory}
+    explicit WsBase(util::TagDecoratorFactory const& tagFactory, std::optional<std::string> ip)
+        : Connection{tagFactory, ip}
     {
     }
 
@@ -113,8 +112,6 @@ class WsSession : public WsBase, public std::enable_shared_from_this<WsSession<D
     Callback callback_;
 
 protected:
-    std::optional<std::string> ip_;
-
     void
     wsFail(boost::beast::error_code ec, char const* what)
     {
@@ -122,7 +119,7 @@ protected:
         {
             ec_ = ec;
             std::cout << "wsFail" << what << std::endl;
-            perfLog_.info() << tag() << ": " << what << ": " << ec.message();
+            perfLog.info() << tag() << ": " << what << ": " << ec.message();
             boost::beast::get_lowest_layer(derived().ws()).socket().close(ec);
             callback_(ec, derived().shared_from_this());
             // if (auto manager = subscriptions_.lock(); manager)
@@ -138,23 +135,22 @@ public:
         clio::DOSGuard& dosGuard,
         Callback callback,
         boost::beast::flat_buffer&& buffer)
-        : WsBase(tagFactory)
+        : WsBase(tagFactory, ip)
         , buffer_(std::move(buffer))
         , ioc_(ioc)
         , tagFactory_(tagFactory)
         , dosGuard_(dosGuard)
         , callback_(callback)
-        , ip_(ip)
     {
-        perfLog_.info() << tag() << "session created";
+        perfLog.info() << tag() << "session created";
     }
 
     virtual ~WsSession()
     {
         std::cout << "session closed" << std::endl;
-        perfLog_.info() << tag() << "session closed";
-        if (ip_)
-            dosGuard_.decrement(*ip_);
+        perfLog.info() << tag() << "session closed";
+        if (ipMaybe)
+            dosGuard_.decrement(*ipMaybe);
     }
 
     Derived<Callback>&
@@ -234,7 +230,7 @@ public:
         if (ec)
             return wsFail(ec, "accept");
 
-        perfLog_.info() << tag() << "accepting new connection";
+        perfLog.info() << tag() << "accepting new connection";
 
         // Read a message
         doRead();
@@ -358,12 +354,12 @@ public:
         if (ec)
             return wsFail(ec, "read");
 
-        auto ip = derived().ip();
+        auto ip = ipMaybe;
 
         if (!ip)
             return;
 
-        perfLog_.info() << tag() << "Received request from ip = " << *ip;
+        perfLog.info() << tag() << "Received request from ip = " << *ip;
 
         auto sendError = [this, ip](auto error, boost::json::value const& id, boost::json::object const& request) {
             auto e = RPC::makeError(error);
@@ -373,7 +369,7 @@ public:
             e["request"] = request;
 
             auto responseStr = boost::json::serialize(e);
-            log_.trace() << responseStr;
+            log.trace() << responseStr;
             dosGuard_.add(*ip, responseStr.size());
             send(std::move(responseStr));
         };
@@ -407,7 +403,7 @@ public:
             request = raw.as_object();
 
             // auto id = request.contains("id") ? request.at("id") : nullptr;
-            perfLog_.debug() << tag() << "Adding to work queue";
+            perfLog.debug() << tag() << "Adding to work queue";
 
             // if (not rpcEngine_->post(
             //         [self = shared_from_this(), req = std::move(request), id](boost::asio::yield_context yield) {
@@ -419,8 +415,6 @@ public:
                 std::move(request),
                 [self = shared_from_this()](auto msg, auto _) { self->send(std::move(msg)); },
                 shared_from_this(),
-                *ip,
-                perfLog_,
                 *this);
         }
 

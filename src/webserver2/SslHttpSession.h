@@ -33,7 +33,6 @@ class SslHttpSession : public HttpBase<SslHttpSession, Callback>,
                        public std::enable_shared_from_this<SslHttpSession<Callback>>
 {
     boost::beast::ssl_stream<boost::beast::tcp_stream> stream_;
-    std::optional<std::string> ip_;
 
 public:
     // Take ownership of the socket
@@ -50,19 +49,18 @@ public:
     {
         try
         {
-            ip_ = stream_.next_layer().socket().remote_endpoint().address().to_string();
+            this->ipMaybe = stream_.next_layer().socket().remote_endpoint().address().to_string();
+            this->dosGuard().increment(*(this->ipMaybe));
         }
         catch (std::exception const&)
         {
         }
-        if (ip_)
-            this->dosGuard().increment(*ip_);
     }
 
     ~SslHttpSession()
     {
-        if (ip_ and not this->upgraded_)
-            this->dosGuard().decrement(*ip_);
+        if (this->ipMaybe and not this->upgraded_)
+            this->dosGuard().decrement(*(this->ipMaybe));
     }
 
     boost::beast::ssl_stream<boost::beast::tcp_stream>&
@@ -74,12 +72,6 @@ public:
     releaseStream()
     {
         return std::move(stream_);
-    }
-
-    std::optional<std::string>
-    ip()
-    {
-        return ip_;
     }
 
     // Start the asynchronous operation
@@ -138,7 +130,7 @@ public:
         std::make_shared<SslWsUpgrader<Callback>>(
             this->ioc_,
             std::move(stream_),
-            this->ip_,
+            this->ipMaybe,
             this->tagFactory_,
             this->dosGuard_,
             this->callback_,

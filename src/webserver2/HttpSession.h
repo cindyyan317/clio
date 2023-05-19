@@ -32,7 +32,6 @@ template <class Callback>
 class HttpSession : public HttpBase<HttpSession, Callback>, public std::enable_shared_from_this<HttpSession<Callback>>
 {
     boost::beast::tcp_stream stream_;
-    std::optional<std::string> ip_;
 
 public:
     // Take ownership of the socket
@@ -48,19 +47,18 @@ public:
     {
         try
         {
-            ip_ = stream_.socket().remote_endpoint().address().to_string();
+            this->ipMaybe = stream_.socket().remote_endpoint().address().to_string();
+            this->dosGuard().increment(*(this->ipMaybe));
         }
         catch (std::exception const&)
         {
         }
-        if (ip_)
-            this->dosGuard().increment(*ip_);
     }
 
     ~HttpSession()
     {
-        if (ip_ and not this->upgraded_)
-            this->dosGuard().decrement(*ip_);
+        if (this->ipMaybe and not this->upgraded_)
+            this->dosGuard().decrement(*(this->ipMaybe));
     }
 
     boost::beast::tcp_stream&
@@ -73,12 +71,6 @@ public:
     releaseStream()
     {
         return std::move(stream_);
-    }
-
-    std::optional<std::string>
-    ip()
-    {
-        return ip_;
     }
 
     // Start the asynchronous operation
@@ -110,7 +102,7 @@ public:
         std::make_shared<WsUpgrader<Callback>>(
             this->ioc_,
             std::move(stream_),
-            ip_,
+            this->ipMaybe,
             this->tagFactory_,
             this->dosGuard_,
             this->callback_,

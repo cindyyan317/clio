@@ -142,9 +142,7 @@ public:
         boost::json::object&& req,
         std::function<void(std::string, http::status)> cb,
         std::shared_ptr<ServerNG::WsBase> ws,
-        std::string const& ip,
-        clio::Logger& perfLog,
-        util::Taggable const& taggable)
+        ServerNG::Connection const& conn)
     {
         std::cout << "req:" << req << std::endl;
         cb(boost::json::serialize(req), http::status::ok);

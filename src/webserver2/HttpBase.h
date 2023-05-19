@@ -22,8 +22,8 @@
 #include <log/Logger.h>
 #include <main/Build.h>
 #include <util/Profiler.h>
-#include <util/Taggable.h>
 #include <webserver/DOSGuard.h>
+#include <webserver2/Connect.h>
 #include <webserver2/PlainWsSession.h>
 #include <webserver2/SslWsSession.h>
 
@@ -50,7 +50,7 @@ static std::string defaultResponse =
 
 // From Boost Beast examples http_server_flex.cpp
 template <template <class> class Derived, class Callback>
-class HttpBase : public util::Taggable
+class HttpBase : public Connection
 {
     // using Callback = typename Derived::CallbackType;
 
@@ -100,8 +100,6 @@ class HttpBase : public util::Taggable
     send_lambda lambda_;
 
 protected:
-    clio::Logger log_{"WebServer"};
-    clio::Logger perfLog_{"Performance"};
     boost::beast::flat_buffer buffer_;
     bool upgraded_ = false;
     boost::asio::io_context& ioc_;
@@ -142,7 +140,7 @@ protected:
         if (!ec_ && ec != boost::asio::error::operation_aborted)
         {
             ec_ = ec;
-            perfLog_.info() << tag() << ": " << what << ": " << ec.message();
+            perfLog.info() << tag() << ": " << what << ": " << ec.message();
             boost::beast::get_lowest_layer(derived().stream()).socket().close(ec);
         }
     }
@@ -154,7 +152,7 @@ public:
         clio::DOSGuard& dosGuard,
         Callback& callback,
         boost::beast::flat_buffer buffer)
-        : Taggable(tagFactory)
+        : Connection(tagFactory)
         , lambda_(*this)
         , buffer_(std::move(buffer))
         , ioc_(ioc)
@@ -162,12 +160,12 @@ public:
         , tagFactory_(tagFactory)
         , callback_(callback)
     {
-        perfLog_.debug() << tag() << "http session created";
+        perfLog.debug() << tag() << "http session created";
     }
 
     virtual ~HttpBase()
     {
-        perfLog_.debug() << tag() << "http session closed";
+        perfLog.debug() << tag() << "http session closed";
     }
 
     clio::DOSGuard&
@@ -208,9 +206,7 @@ public:
         if (ec)
             return httpFail(ec, "read");
 
-        auto ip = derived().ip();
-
-        if (!ip)
+        if (!ipMaybe)
         {
             return;
         }
@@ -237,12 +233,12 @@ public:
         // to avoid overwhelm work queue, the request limit check should be
         // before posting to queue the web socket creation will be guarded via
         // connection limit
-        if (!dosGuard_.request(ip.value()))
+        if (!dosGuard_.request(ipMaybe.value()))
         {
             return lambda_(httpResponse(http::status::service_unavailable, "text/plain", "Server is overloaded"));
         }
 
-        log_.info() << tag() << "Received request from ip = " << *ip << " - posting to WorkQueue";
+        log.info() << tag() << "Received request from ip = " << *ipMaybe << " - posting to WorkQueue";
         if (req_.method() == http::verb::get && req_.body() == "")
         {
             return lambda_(httpResponse(http::status::ok, "text/html", defaultResponse));
@@ -252,14 +248,14 @@ public:
             return lambda_(httpResponse(http::status::bad_request, "text/html", "Expected a POST request"));
         }
 
-        perfLog_.debug() << tag() << "http received request from work queue: " << req_.body();
+        perfLog.debug() << tag() << "http received request from work queue: " << req_.body();
         try
         {
             auto request = boost::json::parse(req_.body()).as_object();
             callback_(
                 std::move(request),
                 [&, self = derived().shared_from_this()](auto result, auto errCode) {
-                    if (!self->dosGuard_.add(*ip, result.size()))
+                    if (!self->dosGuard_.add(*ipMaybe, result.size()))
                     {
                         auto jsonResponse = boost::json::parse(result).as_object();
                         jsonResponse["warning"] = "load";
@@ -270,8 +266,6 @@ public:
                     self->lambda_(httpResponse(errCode, "application/json", result));
                 },
                 nullptr,
-                *ip,
-                perfLog_,
                 *this);
             return;
         }

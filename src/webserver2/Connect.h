@@ -1,6 +1,7 @@
+//------------------------------------------------------------------------------
 /*
     This file is part of clio: https://github.com/XRPLF/clio
-    Copyright (c) 2023, the clio developers.
+    Copyright (c) 2022, the clio developers.
 
     Permission to use, copy, modify, and distribute this software for any
     purpose with or without fee is hereby granted, provided that the above
@@ -16,24 +17,25 @@
 */
 //==============================================================================
 
-#include <util/Fixtures.h>
-#include <webserver2/RPCExecutor.h>
+#pragma once
 
-#include <gtest/gtest.h>
+#include <log/Logger.h>
+#include <util/Taggable.h>
+namespace ServerNG {
 
-class WebRPCExecutorTest : public MockBackendTest
+struct Connection : public util::Taggable
 {
+    clio::Logger log{"WebServer"};
+    clio::Logger perfLog{"Performance"};
+    std::optional<std::string> ipMaybe;
+
+    Connection(util::TagDecoratorFactory const& tagFactory) : Taggable(tagFactory)
+    {
+    }
+
+    Connection(util::TagDecoratorFactory const& tagFactory, std::optional<std::string> ip)
+        : Taggable(tagFactory), ipMaybe(ip)
+    {
+    }
 };
-
-class MockETL
-{
-public:
-    MOCK_METHOD(void, lastCloseAgeSeconds, (std::uint32_t), (const));
-};
-
-TEST_F(WebRPCExecutorTest, test1)
-{
-    //  auto etl = std::make_shared<MockETL>();
-    //  RPCExecutor<RPC::RPCEngine, ReportingETL> rpcExecutor(mockBackendPtr, nullptr, etl,
-    //  util::TagDecoratorFactory{});
-}
+}  // namespace ServerNG

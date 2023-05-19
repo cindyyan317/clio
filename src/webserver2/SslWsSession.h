@@ -54,12 +54,6 @@ public:
     {
         return ws_;
     }
-
-    std::optional<std::string>
-    ip()
-    {
-        return this->ip_;
-    }
 };
 
 template <class Callback>
