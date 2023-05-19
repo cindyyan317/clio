@@ -189,3 +189,60 @@ struct HttpsSyncClient
         return std::string(res.body());
     }
 };
+
+class WebServerSslSyncClient
+{
+    net::io_context ioc_;
+    std::optional<websocket::stream<boost::beast::ssl_stream<tcp::socket>>> ws_;
+
+public:
+    void
+    connect(std::string const& host, std::string const& port)
+    {
+        boost::asio::ssl::context ctx(boost::asio::ssl::context::sslv23);
+        ctx.set_default_verify_paths();
+        // Verify the remote server's certificate
+        ctx.set_verify_mode(ssl::verify_none);
+        // These objects perform our I/O
+        tcp::resolver resolver{ioc_};
+        ws_.emplace(ioc_, ctx);
+
+        // Look up the domain name
+        auto const results = resolver.resolve(host, port);
+
+        // Make the connection on the IP address we get from a lookup
+        net::connect(ws_->next_layer().next_layer(), results.begin(), results.end());
+
+        // Perform the SSL handshake
+        ws_->next_layer().handshake(ssl::stream_base::client);
+
+        // Set a decorator to change the User-Agent of the handshake
+        ws_->set_option(websocket::stream_base::decorator([](websocket::request_type& req) {
+            req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " websocket-client-coro");
+        }));
+
+        // Perform the websocket handshake
+        ws_->handshake(host, "/");
+    }
+
+    void
+    disconnect()
+    {
+        ws_->close(websocket::close_code::normal);
+    }
+
+    std::string
+    syncPost(std::string const& body)
+    {
+        // Send the message
+        ws_->write(net::buffer(std::string(body)));
+
+        // This buffer will hold the incoming message
+        boost::beast::flat_buffer buffer;
+
+        // Read a message into our buffer
+        ws_->read(buffer);
+
+        return boost::beast::buffers_to_string(buffer.data());
+    }
+};
