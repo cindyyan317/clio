@@ -265,8 +265,10 @@ public:
         try
         {
             auto request = boost::json::parse(req_.body()).as_object();
-            auto const& [errCode, result] = callback_(std::move(request));
-            lambda_(httpResponse(errCode, "application/json", result));
+            callback_(
+                std::move(request), [&, self = derived().shared_from_this()](auto const result, auto const errCode) {
+                    self->lambda_(httpResponse(errCode, "application/json", result));
+                });
             return;
         }
         catch (std::runtime_error const& e)

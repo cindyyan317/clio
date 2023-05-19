@@ -137,11 +137,11 @@ private:
 class EchoExecutor
 {
 public:
-    std::tuple<http::status, std::string>
-    operator()(boost::json::object&& req)
+    void
+    operator()(boost::json::object&& req, std::function<void(std::string, http::status)> cb)
     {
         std::cout << "req:" << req << std::endl;
-        return std::make_tuple(http::status::ok, boost::json::serialize(req));
+        cb(boost::json::serialize(req), http::status::ok);
     }
 };
 

@@ -433,8 +433,8 @@ public:
             //         },
             //         ip.value()))
             //     sendError(RPC::RippledError::rpcTOO_BUSY, id, request);
-            auto [code, body] = callback_(std::move(request));
-            send(std::move(body));
+            callback_(
+                std::move(request), [self = shared_from_this()](auto msg, auto _) { self->send(std::move(msg)); });
         }
 
         doRead();
