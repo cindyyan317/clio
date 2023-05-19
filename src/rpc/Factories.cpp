@@ -56,6 +56,28 @@ make_WsContext(
 }
 
 optional<Web::Context>
+make_WsContext(
+    boost::asio::yield_context& yc,
+    boost::json::object const& request,
+    shared_ptr<ServerNG::WsBase> const& session,
+    util::TagDecoratorFactory const& tagFactory,
+    Backend::LedgerRange const& range,
+    string const& clientIp)
+{
+    boost::json::value commandValue = nullptr;
+    if (!request.contains("command") && request.contains("method"))
+        commandValue = request.at("method");
+    else if (request.contains("command") && !request.contains("method"))
+        commandValue = request.at("command");
+
+    if (!commandValue.is_string())
+        return {};
+
+    string command = commandValue.as_string().c_str();
+    return make_optional<Web::Context>(yc, command, 1, request, session, tagFactory, range, clientIp, true);
+}
+
+optional<Web::Context>
 make_HttpContext(
     boost::asio::yield_context& yc,
     boost::json::object const& request,

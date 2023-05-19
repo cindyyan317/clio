@@ -25,29 +25,38 @@
 
 #include <iostream>
 
+template <class Engine, class ETL>
 class RPCExecutor
 {
     std::shared_ptr<BackendInterface const> backend_;
-    std::shared_ptr<RPC::RPCEngine> rpcEngine_;
-    std::shared_ptr<ReportingETL const> etl_;
+    std::shared_ptr<Engine> rpcEngine_;
+    std::shared_ptr<ETL const> etl_;
+    util::TagDecoratorFactory const& tagFactory_;
 
 public:
+    RPCExecutor(
+        std::shared_ptr<BackendInterface const> backend,
+        std::shared_ptr<Engine> rpcEngine,
+        std::shared_ptr<ETL const> etl,
+        util::TagDecoratorFactory const& tagFactory)
+        : backend_(backend), rpcEngine_(rpcEngine), etl_(etl), tagFactory_(tagFactory)
+    {
+    }
+
     void
     operator()(
         boost::json::object&& req,
         std::function<void(std::string, http::status)> cb,
         std::shared_ptr<ServerNG::WsBase> ws,
-        util::TagDecoratorFactory const& tagFactory,
         std::string const& clientIP,
         clio::Logger& perfLog,
         util::Taggable const& taggable)
     {
-        std::cout << "req:" << req << std::endl;
         cb(boost::json::serialize(req), http::status::ok);
 
         if (!rpcEngine_->post(
                 [&, this](boost::asio::yield_context yc) {
-                    handleRequest(yc, std::move(req), cb, ws, tagFactory, clientIP, perfLog, taggable);
+                    handleRequest(yc, std::move(req), cb, ws, clientIP, perfLog, taggable);
                 },
                 clientIP))
         {
@@ -67,7 +76,6 @@ private:
         boost::json::object&& request,
         std::function<void(std::string, http::status)> cb,
         std::shared_ptr<ServerNG::WsBase> const& ws,
-        util::TagDecoratorFactory const& tagFactory,
         std::string const& clientIP,
         clio::Logger& perfLog,
         util::Taggable const& taggable)
@@ -81,7 +89,8 @@ private:
             if (!range)
                 cb(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcNOT_READY)), http::status::ok);
 
-            auto context = RPC::make_HttpContext(yc, request, tagFactory, *range, clientIP);
+            auto context = ws ? RPC::make_WsContext(yc, request, ws, tagFactory_, *range, clientIP)
+                              : RPC::make_HttpContext(yc, request, tagFactory_, *range, clientIP);
             if (!context)
                 cb(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcBAD_SYNTAX)), http::status::ok);
 

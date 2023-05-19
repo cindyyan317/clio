@@ -419,7 +419,6 @@ public:
                 std::move(request),
                 [self = shared_from_this()](auto msg, auto _) { self->send(std::move(msg)); },
                 shared_from_this(),
-                tagFactory_.with(std::cref(tag())),
                 *ip,
                 perfLog_,
                 *this);

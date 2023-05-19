@@ -142,7 +142,6 @@ public:
         boost::json::object&& req,
         std::function<void(std::string, http::status)> cb,
         std::shared_ptr<ServerNG::WsBase> ws,
-        util::TagDecoratorFactory const& tagFactory,
         std::string const& ip,
         clio::Logger& perfLog,
         util::Taggable const& taggable)

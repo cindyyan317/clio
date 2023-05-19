@@ -270,7 +270,6 @@ public:
                     self->lambda_(httpResponse(errCode, "application/json", result));
                 },
                 nullptr,
-                tagFactory_.with(std::cref(tag())),
                 *ip,
                 perfLog_,
                 *this);

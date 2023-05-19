@@ -23,6 +23,7 @@
 #include <log/Logger.h>
 #include <rpc/Errors.h>
 #include <util/Taggable.h>
+#include <webserver2/WsBase.h>
 
 #include <boost/asio/spawn.hpp>
 #include <boost/json.hpp>
@@ -42,6 +43,7 @@ struct Context : public util::Taggable
     std::uint32_t version;
     boost::json::object const& params;
     std::shared_ptr<WsBase> session;
+    std::shared_ptr<ServerNG::WsBase> ngSession;
     Backend::LedgerRange const& range;
     std::string clientIp;
 
@@ -60,6 +62,28 @@ struct Context : public util::Taggable
         , version(version_)
         , params(params_)
         , session(session_)
+        , range(range_)
+        , clientIp(clientIp_)
+    {
+        perfLog_.debug() << tag() << "new Context created";
+    }
+
+    Context(
+        boost::asio::yield_context& yield_,
+        std::string const& command_,
+        std::uint32_t version_,
+        boost::json::object const& params_,
+        std::shared_ptr<ServerNG::WsBase> const& session_,
+        util::TagDecoratorFactory const& tagFactory_,
+        Backend::LedgerRange const& range_,
+        std::string const& clientIp_,
+        bool willRemove)
+        : Taggable(tagFactory_)
+        , yield(yield_)
+        , method(command_)
+        , version(version_)
+        , params(params_)
+        , ngSession(session_)
         , range(range_)
         , clientIp(clientIp_)
     {

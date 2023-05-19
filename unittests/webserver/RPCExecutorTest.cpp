@@ -21,6 +21,18 @@
 
 #include <gtest/gtest.h>
 
-class WebRPCExecutorTest : public NoLoggerFixture
+class WebRPCExecutorTest : public MockBackendTest
 {
 };
+
+class MockETL
+{
+public:
+    MOCK_METHOD(void, lastCloseAgeSeconds, (std::uint32_t), (const));
+}
+
+TEST_F(WebRPCExecutorTest, test1)
+{
+    auto etl = std::make_shared<MockETL>();
+    RPCExecutor<RPC::RPCEngine, ReportingETL> rpcExecutor(mockBackendPtr, nullptr, etl, util::TagDecoratorFactory{});
+}
