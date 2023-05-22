@@ -44,19 +44,13 @@ public:
     }
 
     void
-    operator()(
-        boost::json::object&& req,
-        std::function<void(std::string, http::status)> cb,
-        std::shared_ptr<ServerNG::WsBase> ws,
-        ServerNG::Connection& conn)
+    operator()(boost::json::object&& req, std::shared_ptr<ServerNG::WsBase> ws, ServerNG::Connection& conn)
     {
         if (!rpcEngine_->post(
-                [&, this](boost::asio::yield_context yc) {
-                    handleRequest(yc, std::move(req), cb, ws, *(conn.ipMaybe), conn.perfLog, conn);
-                },
+                [&, this](boost::asio::yield_context yc) { handleRequest(yc, std::move(req), ws, conn); },
                 *(conn.ipMaybe)))
         {
-            cb(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcTOO_BUSY)), http::status::ok);
+            conn.send(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcTOO_BUSY)), http::status::ok);
         }
     }
 
@@ -70,11 +64,8 @@ private:
     handleRequest(
         boost::asio::yield_context& yc,
         boost::json::object&& request,
-        std::function<void(std::string, http::status)> cb,
         std::shared_ptr<ServerNG::WsBase> const& ws,
-        std::string const& clientIP,
-        clio::Logger& perfLog,
-        util::Taggable const& taggable)
+        ServerNG::Connection& conn)
     {
         if (!request.contains("params"))
             request["params"] = boost::json::array({boost::json::object{}});
@@ -83,12 +74,12 @@ private:
         {
             auto const range = backend_->fetchLedgerRange();
             if (!range)
-                cb(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcNOT_READY)), http::status::ok);
+                conn.send(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcNOT_READY)), http::status::ok);
 
-            auto context = ws ? RPC::make_WsContext(yc, request, ws, tagFactory_, *range, clientIP)
-                              : RPC::make_HttpContext(yc, request, tagFactory_, *range, clientIP);
+            auto context = ws ? RPC::make_WsContext(yc, request, ws, tagFactory_, *range, *(conn.ipMaybe))
+                              : RPC::make_HttpContext(yc, request, tagFactory_, *range, *(conn.ipMaybe));
             if (!context)
-                cb(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcBAD_SYNTAX)), http::status::ok);
+                conn.send(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcBAD_SYNTAX)), http::status::ok);
 
             boost::json::object response;
             auto [v, timeDiff] = util::timed([&]() { return rpcEngine_->buildResponse(*context); });
@@ -102,7 +93,7 @@ private:
                 auto error = RPC::makeError(*status);
                 error["request"] = request;
                 response["result"] = error;
-                perfLog.debug() << taggable.tag() << "Encountered error: " << boost::json::serialize(response);
+                conn.perfLog.debug() << conn.tag() << "Encountered error: " << boost::json::serialize(response);
             }
             else
             {
@@ -129,12 +120,13 @@ private:
                 warnings.emplace_back(RPC::makeWarning(RPC::warnRPC_OUTDATED));
 
             response["warnings"] = warnings;
-            return cb(boost::json::serialize(response), http::status::ok);
+
+            conn.send(boost::json::serialize(response), http::status::ok);
         }
         catch (std::exception const& e)
         {
-            perfLog.error() << taggable.tag() << "Caught exception : " << e.what();
-            return cb(
+            conn.perfLog.error() << conn.tag() << "Caught exception : " << e.what();
+            return conn.send(
                 boost::json::serialize(RPC::makeError(RPC::RippledError::rpcINTERNAL)),
                 http::status::internal_server_error);
         }

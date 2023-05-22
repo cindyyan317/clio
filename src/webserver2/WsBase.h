@@ -59,6 +59,7 @@ protected:
     boost::system::error_code ec_;
 
 public:
+    using Connection::send;
     explicit WsBase(util::TagDecoratorFactory const& tagFactory, std::optional<std::string> ip)
         : Connection{tagFactory, ip}
     {
@@ -203,7 +204,7 @@ public:
     }
 
     void
-    send(std::string&& msg)
+    send(std::string&& msg, http::status status = http::status::ok) override
     {
         auto sharedMsg = std::make_shared<Message>(std::move(msg));
         send(sharedMsg);
@@ -411,11 +412,7 @@ public:
             //         },
             //         ip.value()))
             //     sendError(RPC::RippledError::rpcTOO_BUSY, id, request);
-            callback_(
-                std::move(request),
-                [self = shared_from_this()](auto msg, auto _) { self->send(std::move(msg)); },
-                shared_from_this(),
-                *this);
+            callback_(std::move(request), shared_from_this(), *this);
         }
 
         doRead();

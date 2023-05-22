@@ -87,6 +87,12 @@ struct MockWsBase : public ServerNG::WsBase
         message += std::string(msg_type->data());
     }
 
+    void
+    send(std::string&& msg, http::status status = http::status::ok) override
+    {
+        message += std::string(msg.data());
+    }
+
     MockWsBase(util::TagDecoratorFactory const& factory) : ServerNG::WsBase(factory, "localhost.fake.ip")
     {
     }
@@ -102,6 +108,5 @@ TEST_F(WebRPCExecutorTest, test1)
         "method": "server_info"
     })")
                        .as_object();
-    rpcExecutor(
-        std::move(request), [](std::string, http::status) {}, session, *session);
+    rpcExecutor(std::move(request), session, *session);
 }

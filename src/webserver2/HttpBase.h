@@ -194,6 +194,18 @@ public:
             boost::beast::bind_front_handler(&HttpBase::onRead, derived().shared_from_this()));
     }
 
+    http::response<http::string_body>
+    httpResponse(http::status status, std::string content_type, std::string message) const
+    {
+        http::response<http::string_body> res{status, req_.version()};
+        res.set(http::field::server, "clio-server-" + Build::getClioVersionString());
+        res.set(http::field::content_type, content_type);
+        res.keep_alive(req_.keep_alive());
+        res.body() = std::string(message);
+        res.prepare_payload();
+        return res;
+    };
+
     void
     onRead(boost::beast::error_code ec, std::size_t bytes_transferred)
     {
@@ -220,16 +232,6 @@ public:
             return derived().upgrade();
         }
 
-        auto const httpResponse = [&](http::status status, std::string content_type, std::string message) {
-            http::response<http::string_body> res{status, req_.version()};
-            res.set(http::field::server, "clio-server-" + Build::getClioVersionString());
-            res.set(http::field::content_type, content_type);
-            res.keep_alive(req_.keep_alive());
-            res.body() = std::string(message);
-            res.prepare_payload();
-            return res;
-        };
-
         // to avoid overwhelm work queue, the request limit check should be
         // before posting to queue the web socket creation will be guarded via
         // connection limit
@@ -252,21 +254,7 @@ public:
         try
         {
             auto request = boost::json::parse(req_.body()).as_object();
-            callback_(
-                std::move(request),
-                [&, self = derived().shared_from_this()](auto result, auto errCode) {
-                    if (!self->dosGuard_.add(*ipMaybe, result.size()))
-                    {
-                        auto jsonResponse = boost::json::parse(result).as_object();
-                        jsonResponse["warning"] = "load";
-                        jsonResponse["warnings"].as_array().push_back(RPC::makeWarning(RPC::warnRPC_RATE_LIMIT));
-                        // reserialize when we need to include this warning
-                        result = boost::json::serialize(jsonResponse);
-                    }
-                    self->lambda_(httpResponse(errCode, "application/json", result));
-                },
-                nullptr,
-                *this);
+            callback_(std::move(request), nullptr, *this);
             return;
         }
         catch (std::runtime_error const& e)
@@ -276,6 +264,20 @@ public:
                 "application/json",
                 boost::json::serialize(RPC::makeError(RPC::RippledError::rpcBAD_SYNTAX))));
         }
+    }
+
+    void
+    send(std::string&& msg, http::status status = http::status::ok) override
+    {
+        if (!dosGuard_.add(*ipMaybe, msg.size()))
+        {
+            auto jsonResponse = boost::json::parse(msg).as_object();
+            jsonResponse["warning"] = "load";
+            jsonResponse["warnings"].as_array().push_back(RPC::makeWarning(RPC::warnRPC_RATE_LIMIT));
+            // reserialize when we need to include this warning
+            msg = boost::json::serialize(jsonResponse);
+        }
+        lambda_(httpResponse(status, "application/json", std::move(msg)));
     }
 
     void

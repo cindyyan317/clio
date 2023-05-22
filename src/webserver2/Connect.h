@@ -19,9 +19,13 @@
 
 #pragma once
 
+#include <boost/beast/http.hpp>
 #include <log/Logger.h>
 #include <util/Taggable.h>
+
 namespace ServerNG {
+
+namespace http = boost::beast::http;
 
 struct Connection : public util::Taggable
 {
@@ -37,5 +41,8 @@ struct Connection : public util::Taggable
         : Taggable(tagFactory), ipMaybe(ip)
     {
     }
+
+    virtual void
+    send(std::string&& msg, http::status status = http::status::ok) = 0;
 };
 }  // namespace ServerNG
