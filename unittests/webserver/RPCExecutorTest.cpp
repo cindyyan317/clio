@@ -16,6 +16,7 @@
 */
 //==============================================================================
 
+#include <rpc/common/impl/HandlerProvider.h>
 #include <util/Fixtures.h>
 #include <webserver2/RPCExecutor.h>
 
@@ -23,6 +24,51 @@
 
 class WebRPCExecutorTest : public MockBackendTest
 {
+protected:
+    void
+    SetUp() override
+    {
+        MockBackendTest::SetUp();
+        work.emplace(ctx);  // make sure ctx does not stop on its own
+        runner.emplace([this] { ctx.run(); });
+        auto workQueue = WorkQueue::make_WorkQueue(cfg);
+        auto counters = RPC::Counters::make_Counters(workQueue);
+        auto ledgers = NetworkValidatedLedgers::make_ValidatedLedgers();
+        subManager = SubscriptionManager::make_SubscriptionManager(cfg, mockBackendPtr);
+        auto balancer = ETLLoadBalancer::make_ETLLoadBalancer(cfg, ctx, mockBackendPtr, subManager, ledgers);
+        etl = ReportingETL::make_ReportingETL(cfg, ctx, mockBackendPtr, subManager, balancer, ledgers);
+        auto const handlerProvider = std::make_shared<RPC::detail::ProductionHandlerProvider const>(
+            mockBackendPtr, subManager, balancer, etl, counters);
+        // ctx for dosguard
+        boost::asio::io_context ctxSync;
+        clio::IntervalSweepHandler sweepHandler = clio::IntervalSweepHandler{cfg, ctxSync};
+        clio::DOSGuard dosGuard = clio::DOSGuard{cfg, sweepHandler};
+        rpcEngine = RPC::RPCEngine::make_RPCEngine(
+            cfg, mockBackendPtr, subManager, balancer, etl, dosGuard, workQueue, counters, handlerProvider);
+
+        tagFactory = std::make_shared<util::TagDecoratorFactory>(cfg);
+    }
+
+    void
+    TearDown() override
+    {
+        work.reset();
+        ctx.stop();
+        if (runner->joinable())
+            runner->join();
+        MockBackendTest::TearDown();
+    }
+
+    std::shared_ptr<RPC::RPCEngine> rpcEngine;
+    std::shared_ptr<SubscriptionManager> subManager;
+    std::shared_ptr<ReportingETL> etl;
+    std::shared_ptr<util::TagDecoratorFactory> tagFactory;
+    clio::Config cfg;
+    boost::asio::io_context ctx;
+
+private:
+    std::optional<boost::asio::io_service::work> work;
+    std::optional<std::thread> runner;
 };
 
 class MockETL
@@ -31,9 +77,31 @@ public:
     MOCK_METHOD(void, lastCloseAgeSeconds, (std::uint32_t), (const));
 };
 
+struct MockWsBase : public ServerNG::WsBase
+{
+    std::string message;
+
+    void
+    send(std::shared_ptr<Message> msg_type) override
+    {
+        message += std::string(msg_type->data());
+    }
+
+    MockWsBase(util::TagDecoratorFactory const& factory) : ServerNG::WsBase(factory, "localhost.fake.ip")
+    {
+    }
+};
+
 TEST_F(WebRPCExecutorTest, test1)
 {
-    //  auto etl = std::make_shared<MockETL>();
-    //  RPCExecutor<RPC::RPCEngine, ReportingETL> rpcExecutor(mockBackendPtr, nullptr, etl,
-    //  util::TagDecoratorFactory{});
+    auto session = std::make_shared<MockWsBase>(*tagFactory);
+
+    auto rpcExecutor = RPCExecutor(mockBackendPtr, rpcEngine, etl, tagFactory->with(std::cref(session->tag())));
+    auto request = boost::json::parse(R"(
+    {
+        "method": "server_info"
+    })")
+                       .as_object();
+    rpcExecutor(
+        std::move(request), [](std::string, http::status) {}, session, *session);
 }

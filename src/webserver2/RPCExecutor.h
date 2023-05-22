@@ -25,19 +25,19 @@
 
 #include <iostream>
 
-template <class Engine, class ETL>
 class RPCExecutor
 {
     std::shared_ptr<BackendInterface const> backend_;
-    std::shared_ptr<Engine> rpcEngine_;
-    std::shared_ptr<ETL const> etl_;
+    std::shared_ptr<RPC::RPCEngine> rpcEngine_;
+    std::shared_ptr<ReportingETL const> etl_;
+    // sub tag of web session's tag
     util::TagDecoratorFactory const& tagFactory_;
 
 public:
     RPCExecutor(
         std::shared_ptr<BackendInterface const> backend,
-        std::shared_ptr<Engine> rpcEngine,
-        std::shared_ptr<ETL const> etl,
+        std::shared_ptr<RPC::RPCEngine> rpcEngine,
+        std::shared_ptr<ReportingETL const> etl,
         util::TagDecoratorFactory const& tagFactory)
         : backend_(backend), rpcEngine_(rpcEngine), etl_(etl), tagFactory_(tagFactory)
     {
@@ -48,10 +48,8 @@ public:
         boost::json::object&& req,
         std::function<void(std::string, http::status)> cb,
         std::shared_ptr<ServerNG::WsBase> ws,
-        ServerNG::Connection const& conn)
+        ServerNG::Connection& conn)
     {
-        cb(boost::json::serialize(req), http::status::ok);
-
         if (!rpcEngine_->post(
                 [&, this](boost::asio::yield_context yc) {
                     handleRequest(yc, std::move(req), cb, ws, *(conn.ipMaybe), conn.perfLog, conn);
