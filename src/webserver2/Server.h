@@ -85,20 +85,31 @@ public:
         if (ec)
             return fail(ec, "detect");
 
+        // would not create session if can not get ip
+        std::string ip;
+        try
+        {
+            ip = stream_.socket().remote_endpoint().address().to_string();
+        }
+        catch (std::exception const&)
+        {
+            return fail(ec, "cannot get remote endpoint");
+        }
+
         if (result)
         {
             if (!ctx_)
                 return fail(ec, "ssl not supported by this server");
             // Launch SSL session
             std::make_shared<SslSession<Callback>>(
-                ioc_, stream_.release_socket(), *ctx_, tagFactory_, dosGuard_, callback_, std::move(buffer_))
+                ioc_, stream_.release_socket(), ip, *ctx_, tagFactory_, dosGuard_, callback_, std::move(buffer_))
                 ->run();
             return;
         }
         std::cout << "Plain session" << std::endl;
         // Launch plain session
         std::make_shared<PlainSession<Callback>>(
-            ioc_, stream_.release_socket(), tagFactory_, dosGuard_, callback_, std::move(buffer_))
+            ioc_, stream_.release_socket(), ip, tagFactory_, dosGuard_, callback_, std::move(buffer_))
             ->run();
     }
 };

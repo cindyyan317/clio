@@ -39,7 +39,7 @@ public:
     explicit SslWsSession(
         boost::asio::io_context& ioc,
         boost::beast::ssl_stream<boost::beast::tcp_stream>&& stream,
-        std::optional<std::string> ip,
+        std::string ip,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
         Callback& callback,
@@ -63,7 +63,7 @@ class SslWsUpgrader : public std::enable_shared_from_this<SslWsUpgrader<Callback
     boost::beast::ssl_stream<boost::beast::tcp_stream> https_;
     boost::optional<http::request_parser<http::string_body>> parser_;
     boost::beast::flat_buffer buffer_;
-    std::optional<std::string> ip_;
+    std::string ip_;
     util::TagDecoratorFactory const& tagFactory_;
     clio::DOSGuard& dosGuard_;
     Callback callback_;
@@ -73,7 +73,7 @@ public:
     SslWsUpgrader(
         boost::asio::io_context& ioc,
         boost::beast::ssl_stream<boost::beast::tcp_stream> stream,
-        std::optional<std::string> ip,
+        std::string ip,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
         Callback callback,

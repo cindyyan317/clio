@@ -20,6 +20,7 @@
 #pragma once
 
 #include <log/Logger.h>
+#include <rpc/common/Types.h>
 #include <subscriptions/Message.h>
 #include <util/Profiler.h>
 #include <webserver/DOSGuard.h>
@@ -60,8 +61,7 @@ protected:
 
 public:
     using ConnectionBase::send;
-    explicit WsBase(util::TagDecoratorFactory const& tagFactory, std::optional<std::string> ip)
-        : ConnectionBase{tagFactory, ip}
+    explicit WsBase(util::TagDecoratorFactory const& tagFactory, std::string const& ip) : ConnectionBase{tagFactory, ip}
     {
     }
 
@@ -96,14 +96,6 @@ class WsSession : public WsBase, public std::enable_shared_from_this<WsSession<D
     boost::beast::flat_buffer buffer_;
 
     boost::asio::io_context& ioc_;
-    // std::shared_ptr<BackendInterface const> backend_;
-    // std::shared_ptr<RPC::RPCEngine> rpcEngine_;
-    // // has to be a weak ptr because SubscriptionManager maintains collections
-    // // of std::shared_ptr<WsBase> objects. If this were shared, there would be
-    // // a cyclical dependency that would block destruction
-    // std::weak_ptr<SubscriptionManager> subscriptions_;
-    // std::shared_ptr<ETLLoadBalancer> balancer_;
-    // std::shared_ptr<ReportingETL const> etl_;
     util::TagDecoratorFactory const& tagFactory_;
     clio::DOSGuard& dosGuard_;
     std::mutex mtx_;
@@ -123,15 +115,13 @@ protected:
             perfLog.info() << tag() << ": " << what << ": " << ec.message();
             boost::beast::get_lowest_layer(derived().ws()).socket().close(ec);
             callback_(ec, derived().shared_from_this());
-            // if (auto manager = subscriptions_.lock(); manager)
-            //     manager->cleanup(derived().shared_from_this());
         }
     }
 
 public:
     explicit WsSession(
         boost::asio::io_context& ioc,
-        std::optional<std::string> ip,
+        std::string ip,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
         Callback callback,
@@ -148,10 +138,8 @@ public:
 
     virtual ~WsSession()
     {
-        std::cout << "session closed" << std::endl;
         perfLog.info() << tag() << "session closed";
-        if (ipMaybe)
-            dosGuard_.decrement(*ipMaybe);
+        dosGuard_.decrement(clientIp);
     }
 
     Derived<Callback>&
@@ -206,7 +194,7 @@ public:
     void
     send(std::string&& msg, http::status status = http::status::ok) override
     {
-        if (!dosGuard_.add(*ipMaybe, msg.size()))
+        if (!dosGuard_.add(clientIp, msg.size()))
         {
             auto jsonResponse = boost::json::parse(msg).as_object();
             jsonResponse["warning"] = "load";
@@ -259,102 +247,6 @@ public:
             buffer_, boost::beast::bind_front_handler(&WsSession::onRead, this->shared_from_this()));
     }
 
-    // void
-    // handleRequest(boost::json::object const&& request, boost::json::value const& id, boost::asio::yield_context&
-    // yield)
-    // {
-    //     auto ip = derived().ip();
-    //     if (!ip)
-    //         return;
-
-    //     boost::json::object response = {};
-    //     auto sendError = [this, &request, id](auto error) {
-    //         auto e = RPC::makeError(error);
-    //         if (!id.is_null())
-    //             e["id"] = id;
-    //         e["request"] = request;
-    //         this->send(boost::json::serialize(e));
-    //     };
-
-    //     try
-    //     {
-    //         log_.info() << tag() << "ws received request from work queue : " << request;
-
-    //         auto range = backend_->fetchLedgerRange();
-    //         if (!range)
-    //             return sendError(RPC::RippledError::rpcNOT_READY);
-
-    //         auto context = RPC::make_WsContext(
-    //             yield, request, shared_from_this(), tagFactory_.with(std::cref(tag())), *range, *ip);
-
-    //         if (!context)
-    //         {
-    //             perfLog_.warn() << tag() << "Could not create RPC context";
-    //             return sendError(RPC::RippledError::rpcBAD_SYNTAX);
-    //         }
-
-    //         response = getDefaultWsResponse(id);
-
-    //         auto [v, timeDiff] = util::timed([this, &context]() { return rpcEngine_->buildResponse(*context); });
-
-    //         auto us = std::chrono::duration<int, std::milli>(timeDiff);
-    //         RPC::logDuration(*context, us);
-
-    //         if (auto status = std::get_if<RPC::Status>(&v))
-    //         {
-    //             rpcEngine_->notifyErrored(context->method);
-    //             auto error = RPC::makeError(*status);
-
-    //             if (!id.is_null())
-    //                 error["id"] = id;
-
-    //             error["request"] = request;
-    //             response = error;
-    //         }
-    //         else
-    //         {
-    //             rpcEngine_->notifyComplete(context->method, us);
-
-    //             auto const& result = std::get<boost::json::object>(v);
-    //             auto const isForwarded = result.contains("forwarded") && result.at("forwarded").is_bool() &&
-    //                 result.at("forwarded").as_bool();
-
-    //             // if the result is forwarded - just use it as is
-    //             // but keep all default fields in the response too.
-    //             if (isForwarded)
-    //                 for (auto const& [k, v] : result)
-    //                     response.insert_or_assign(k, v);
-    //             else
-    //                 response["result"] = result;
-    //         }
-    //     }
-    //     catch (std::exception const& e)
-    //     {
-    //         perfLog_.error() << tag() << "Caught exception : " << e.what();
-
-    //         return sendError(RPC::RippledError::rpcINTERNAL);
-    //     }
-
-    //     boost::json::array warnings;
-
-    //     warnings.emplace_back(RPC::makeWarning(RPC::warnRPC_CLIO));
-
-    //     auto lastCloseAge = etl_->lastCloseAgeSeconds();
-    //     if (lastCloseAge >= 60)
-    //         warnings.emplace_back(RPC::makeWarning(RPC::warnRPC_OUTDATED));
-    //     response["warnings"] = warnings;
-    //     std::string responseStr = boost::json::serialize(response);
-    //     if (!dosGuard_.add(*ip, responseStr.size()))
-    //     {
-    //         response["warning"] = "load";
-    //         warnings.emplace_back(RPC::makeWarning(RPC::warnRPC_RATE_LIMIT));
-    //         response["warnings"] = warnings;
-    //         // reserialize if we need to include this warning
-    //         responseStr = boost::json::serialize(response);
-    //     }
-    //     send(std::move(responseStr));
-    // }
-
     void
     onRead(boost::beast::error_code ec, std::size_t bytes_transferred)
     {
@@ -363,14 +255,9 @@ public:
         if (ec)
             return wsFail(ec, "read");
 
-        auto ip = ipMaybe;
+        perfLog.info() << tag() << "Received request from ip = " << this->clientIp;
 
-        if (!ip)
-            return;
-
-        perfLog.info() << tag() << "Received request from ip = " << *ip;
-
-        auto sendError = [this, ip](auto error, boost::json::value const& id, boost::json::object const& request) {
+        auto sendError = [this](auto error, boost::json::value const& id, boost::json::value const& request) {
             auto e = RPC::makeError(error);
 
             if (!id.is_null())
@@ -391,34 +278,24 @@ public:
             }
             catch (std::exception&)
             {
-                return boost::json::value{nullptr};
+                return boost::json::value{msg};
             }
         }(std::move(msg));
 
-        boost::json::object request;
         // dosGuard served request++ and check ip address
-        if (!dosGuard_.request(*ip))
+        if (!dosGuard_.request(clientIp))
         {
-            sendError(RPC::RippledError::rpcSLOW_DOWN, nullptr, request);
+            sendError(RPC::RippledError::rpcSLOW_DOWN, nullptr, raw);
         }
         else if (!raw.is_object())
         {
             // handle invalid request and async read again
-            sendError(RPC::RippledError::rpcINVALID_PARAMS, nullptr, request);
+            sendError(RPC::RippledError::rpcINVALID_PARAMS, nullptr, raw);
         }
         else
         {
-            request = raw.as_object();
-
-            // auto id = request.contains("id") ? request.at("id") : nullptr;
+            auto request = raw.as_object();
             perfLog.debug() << tag() << "Adding to work queue";
-
-            // if (not rpcEngine_->post(
-            //         [self = shared_from_this(), req = std::move(request), id](boost::asio::yield_context yield) {
-            //             self->handleRequest(std::move(req), id, yield);
-            //         },
-            //         ip.value()))
-            //     sendError(RPC::RippledError::rpcTOO_BUSY, id, request);
             callback_(std::move(request), shared_from_this(), *this);
         }
 

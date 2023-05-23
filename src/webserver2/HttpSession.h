@@ -38,27 +38,21 @@ public:
     explicit HttpSession(
         boost::asio::io_context& ioc,
         tcp::socket&& socket,
+        std::string const& ip,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
         Callback& callback,
         boost::beast::flat_buffer buffer)
-        : HttpBase<HttpSession, Callback>(ioc, tagFactory, dosGuard, callback, std::move(buffer))
+        : HttpBase<HttpSession, Callback>(ioc, ip, tagFactory, dosGuard, callback, std::move(buffer))
         , stream_(std::move(socket))
     {
-        try
-        {
-            this->ipMaybe = stream_.socket().remote_endpoint().address().to_string();
-            this->dosGuard().increment(*(this->ipMaybe));
-        }
-        catch (std::exception const&)
-        {
-        }
+        this->dosGuard().increment(ip);
     }
 
     ~HttpSession()
     {
-        if (this->ipMaybe and not this->upgraded_)
-            this->dosGuard().decrement(*(this->ipMaybe));
+        if (not this->upgraded_)
+            this->dosGuard().decrement(this->clientIp);
     }
 
     boost::beast::tcp_stream&
@@ -102,7 +96,7 @@ public:
         std::make_shared<WsUpgrader<Callback>>(
             this->ioc_,
             std::move(stream_),
-            this->ipMaybe,
+            this->clientIp,
             this->tagFactory_,
             this->dosGuard_,
             this->callback_,

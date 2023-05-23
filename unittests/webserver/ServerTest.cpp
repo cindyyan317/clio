@@ -173,6 +173,30 @@ TEST_F(WebServerTest, Ws)
     std::cout << "end test" << std::endl;
 }
 
+TEST_F(WebServerTest, HttpBodyNotJsonValue)
+{
+    EchoExecutor e;
+    auto server = ServerNG::make_HttpServer(cfg, ctx, std::nullopt, dosGuard, e);
+    auto const res = HttpSyncClient::syncPost("localhost", "8888", R"({)");
+    std::cout << "Received: " << res << std::endl;
+    EXPECT_EQ(
+        res,
+        R"({"error":"badSyntax","error_code":1,"error_message":"Syntax error.","status":"error","type":"response"})");
+    std::cout << "end test" << std::endl;
+}
+
+TEST_F(WebServerTest, HttpBodyNotJsonObject)
+{
+    EchoExecutor e;
+    auto server = ServerNG::make_HttpServer(cfg, ctx, std::nullopt, dosGuard, e);
+    auto const res = HttpSyncClient::syncPost("localhost", "8888", R"("123")");
+    std::cout << "Received: " << res << std::endl;
+    EXPECT_EQ(
+        res,
+        R"({"error":"badSyntax","error_code":1,"error_message":"Syntax error.","status":"error","type":"response"})");
+    std::cout << "end test" << std::endl;
+}
+
 TEST_F(WebServerTest, Https)
 {
     EchoExecutor e;

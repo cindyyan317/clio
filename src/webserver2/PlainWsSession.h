@@ -39,7 +39,7 @@ public:
     explicit PlainWsSession(
         boost::asio::io_context& ioc,
         boost::asio::ip::tcp::socket&& socket,
-        std::optional<std::string> ip,
+        std::string ip,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
         Callback& callback,
@@ -68,14 +68,14 @@ class WsUpgrader : public std::enable_shared_from_this<WsUpgrader<Callback>>
     util::TagDecoratorFactory const& tagFactory_;
     clio::DOSGuard& dosGuard_;
     http::request<http::string_body> req_;
-    std::optional<std::string> ip_;
+    std::string ip_;
     Callback callback_;
 
 public:
     WsUpgrader(
         boost::asio::io_context& ioc,
         boost::beast::tcp_stream&& stream,
-        std::optional<std::string> ip,
+        std::string ip,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
         Callback& callback,

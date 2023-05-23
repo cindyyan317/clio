@@ -42,18 +42,11 @@ namespace net = boost::asio;
 namespace ssl = boost::asio::ssl;
 using tcp = boost::asio::ip::tcp;
 namespace ServerNG {
-static std::string defaultResponse =
-    "<!DOCTYPE html><html><head><title>"
-    " Test page for reporting mode</title></head><body><h1>"
-    " Test</h1><p>This page shows xrpl reporting http(s) "
-    "connectivity is working.</p></body></html>";
 
 // From Boost Beast examples http_server_flex.cpp
 template <template <class> class Derived, class Callback>
 class HttpBase : public ConnectionBase
 {
-    // using Callback = typename Derived::CallbackType;
-
     // Access the derived class, this is part of
     // the Curiously Recurring Template Pattern idiom.
     Derived<Callback>&
@@ -148,11 +141,12 @@ protected:
 public:
     HttpBase(
         boost::asio::io_context& ioc,
+        std::string const& ip,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
         Callback& callback,
         boost::beast::flat_buffer buffer)
-        : ConnectionBase(tagFactory)
+        : ConnectionBase(tagFactory, ip)
         , lambda_(*this)
         , buffer_(std::move(buffer))
         , ioc_(ioc)
@@ -218,11 +212,6 @@ public:
         if (ec)
             return httpFail(ec, "read");
 
-        if (!ipMaybe)
-        {
-            return;
-        }
-
         if (boost::beast::websocket::is_upgrade(req_))
         {
             upgraded_ = true;
@@ -235,26 +224,28 @@ public:
         // to avoid overwhelm work queue, the request limit check should be
         // before posting to queue the web socket creation will be guarded via
         // connection limit
-        if (!dosGuard_.request(ipMaybe.value()))
+        if (!dosGuard_.request(clientIp))
         {
             return lambda_(httpResponse(http::status::service_unavailable, "text/plain", "Server is overloaded"));
         }
 
-        log.info() << tag() << "Received request from ip = " << *ipMaybe << " - posting to WorkQueue";
-        if (req_.method() == http::verb::get && req_.body() == "")
-        {
-            return lambda_(httpResponse(http::status::ok, "text/html", defaultResponse));
-        }
         if (req_.method() != http::verb::post)
         {
             return lambda_(httpResponse(http::status::bad_request, "text/html", "Expected a POST request"));
         }
 
-        perfLog.debug() << tag() << "http received request from work queue: " << req_.body();
+        log.info() << tag() << "Received request from ip = " << clientIp << " - posting to WorkQueue";
+
         try
         {
-            auto request = boost::json::parse(req_.body()).as_object();
-            callback_(std::move(request), nullptr, *this);
+            auto request = boost::json::parse(req_.body());
+            // if (!request.is_object())
+            //     return lambda_(httpResponse(
+            //         http::status::ok,
+            //         "application/json",
+            //         boost::json::serialize(RPC::makeError(RPC::RippledError::rpcBAD_SYNTAX))));
+            auto req = request.as_object();
+            callback_(std::move(req), nullptr, *this);
             return;
         }
         catch (std::runtime_error const& e)
@@ -269,7 +260,7 @@ public:
     void
     send(std::string&& msg, http::status status = http::status::ok) override
     {
-        if (!dosGuard_.add(*ipMaybe, msg.size()))
+        if (!dosGuard_.add(clientIp, msg.size()))
         {
             auto jsonResponse = boost::json::parse(msg).as_object();
             jsonResponse["warning"] = "load";

@@ -33,12 +33,14 @@ class RPCExecutor
     std::shared_ptr<ETL const> etl_;
     // sub tag of web session's tag
     util::TagDecoratorFactory const& tagFactory_;
+    std::shared_ptr<SubscriptionManager> subscriptions_;
 
 public:
     RPCExecutor(
         std::shared_ptr<BackendInterface const> backend,
         std::shared_ptr<Engine> rpcEngine,
         std::shared_ptr<ETL const> etl,
+        std::shared_ptr<SubscriptionManager> subscriptions,
         util::TagDecoratorFactory const& tagFactory)
         : backend_(backend), rpcEngine_(rpcEngine), etl_(etl), tagFactory_(tagFactory)
     {
@@ -49,7 +51,7 @@ public:
     {
         if (!rpcEngine_->post(
                 [&, this](boost::asio::yield_context yc) { handleRequest(yc, std::move(req), ws, conn); },
-                *(conn.ipMaybe)))
+                conn.clientIp))
         {
             conn.send(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcTOO_BUSY)), http::status::ok);
         }
@@ -58,6 +60,7 @@ public:
     void
     operator()(boost::beast::error_code ec, std::shared_ptr<ServerNG::WsBase> ws)
     {
+        // subscriptions_->cleanup(ws);
     }
 
 private:
@@ -66,24 +69,45 @@ private:
         boost::asio::yield_context& yc,
         boost::json::object&& request,
         std::shared_ptr<ServerNG::WsBase> const& ws,
-        ServerNG::ConnectionBase& conn)
+        ServerNG::ConnectionBase& connection)
     {
+        connection.perfLog.debug() << connection.tag() << "Received request from work queue: " << request;
+
         if (!ws && !request.contains("params"))
             request["params"] = boost::json::array({boost::json::object{}});
+
+        auto const id = request.contains("id") ? request.at("id") : nullptr;
+
+        auto const composeError = [&](auto const& error) -> boost::json::object {
+            auto e = RPC::makeError(error);
+            if (!id.is_null())
+                e["id"] = id;
+            e["request"] = request;
+            if (ws)
+            {
+                return e;
+            }
+            else
+            {
+                return boost::json::object{{"result", e}};
+            }
+        };
 
         try
         {
             auto const range = backend_->fetchLedgerRange();
+            // for the error happened before the handler, we don't attach the clio warning
             if (!range)
-                conn.send(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcNOT_READY)), http::status::ok);
+                return connection.send(
+                    boost::json::serialize(composeError(RPC::RippledError::rpcNOT_READY)), http::status::ok);
 
-            auto context = ws ? RPC::make_WsContext(yc, request, ws, tagFactory_, *range, *(conn.ipMaybe))
-                              : RPC::make_HttpContext(yc, request, tagFactory_, *range, *(conn.ipMaybe));
+            auto context = ws ? RPC::make_WsContext(yc, request, ws, tagFactory_, *range, connection.clientIp)
+                              : RPC::make_HttpContext(yc, request, tagFactory_, *range, connection.clientIp);
             if (!context)
-                conn.send(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcBAD_SYNTAX)), http::status::ok);
+                return connection.send(
+                    boost::json::serialize(composeError(RPC::RippledError::rpcBAD_SYNTAX)), http::status::ok);
 
             boost::json::object response;
-            auto const id = request.contains("id") ? request.at("id") : nullptr;
             auto [v, timeDiff] = util::timed([&]() { return rpcEngine_->buildResponse(*context); });
 
             auto us = std::chrono::duration<int, std::milli>(timeDiff);
@@ -92,21 +116,9 @@ private:
             if (auto const status = std::get_if<RPC::Status>(&v))
             {
                 rpcEngine_->notifyErrored(context->method);
-                auto error = RPC::makeError(*status);
-                if (ws)
-                {
-                    if (!id.is_null())
-                        error["id"] = id;
-
-                    error["request"] = request;
-                    response = std::move(error);
-                }
-                else
-                {
-                    error["request"] = request;
-                    response["result"] = error;
-                }
-                conn.perfLog.debug() << conn.tag() << "Encountered error: " << boost::json::serialize(response);
+                response = std::move(composeError(*status));
+                connection.perfLog.debug()
+                    << connection.tag() << "Encountered error: " << boost::json::serialize(response);
             }
             else
             {
@@ -114,7 +126,6 @@ private:
                 // requests as successful.
 
                 rpcEngine_->notifyComplete(context->method, us);
-
                 auto& result = std::get<boost::json::object>(v);
                 auto const isForwarded = result.contains("forwarded") && result.at("forwarded").is_bool() &&
                     result.at("forwarded").as_bool();
@@ -156,14 +167,13 @@ private:
                 warnings.emplace_back(RPC::makeWarning(RPC::warnRPC_OUTDATED));
 
             response["warnings"] = warnings;
-
-            conn.send(boost::json::serialize(response), http::status::ok);
+            connection.send(boost::json::serialize(response), http::status::ok);
         }
         catch (std::exception const& e)
         {
-            conn.perfLog.error() << conn.tag() << "Caught exception : " << e.what();
-            return conn.send(
-                boost::json::serialize(RPC::makeError(RPC::RippledError::rpcINTERNAL)),
+            connection.perfLog.error() << connection.tag() << "Caught exception : " << e.what();
+            return connection.send(
+                boost::json::serialize(composeError(RPC::RippledError::rpcINTERNAL)),
                 http::status::internal_server_error);
         }
     }

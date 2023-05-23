@@ -31,14 +31,9 @@ struct ConnectionBase : public util::Taggable
 {
     clio::Logger log{"WebServer"};
     clio::Logger perfLog{"Performance"};
-    std::optional<std::string> ipMaybe;
+    std::string const clientIp;
 
-    ConnectionBase(util::TagDecoratorFactory const& tagFactory) : Taggable(tagFactory)
-    {
-    }
-
-    ConnectionBase(util::TagDecoratorFactory const& tagFactory, std::optional<std::string> ip)
-        : Taggable(tagFactory), ipMaybe(ip)
+    ConnectionBase(util::TagDecoratorFactory const& tagFactory, std::string ip) : Taggable(tagFactory), clientIp(ip)
     {
     }
 
