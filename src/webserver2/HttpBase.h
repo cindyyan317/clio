@@ -238,17 +238,11 @@ public:
 
         try
         {
-            auto request = boost::json::parse(req_.body());
-            // if (!request.is_object())
-            //     return lambda_(httpResponse(
-            //         http::status::ok,
-            //         "application/json",
-            //         boost::json::serialize(RPC::makeError(RPC::RippledError::rpcBAD_SYNTAX))));
-            auto req = request.as_object();
-            callback_(std::move(req), nullptr, *this);
+            auto request = boost::json::parse(req_.body()).as_object();
+            callback_(std::move(request), nullptr, *this);
             return;
         }
-        catch (std::runtime_error const& e)
+        catch (boost::exception const& e)
         {
             return lambda_(httpResponse(
                 http::status::ok,
