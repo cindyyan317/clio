@@ -27,17 +27,17 @@ namespace ServerNG {
 
 namespace http = boost::beast::http;
 
-struct Connection : public util::Taggable
+struct ConnectionBase : public util::Taggable
 {
     clio::Logger log{"WebServer"};
     clio::Logger perfLog{"Performance"};
     std::optional<std::string> ipMaybe;
 
-    Connection(util::TagDecoratorFactory const& tagFactory) : Taggable(tagFactory)
+    ConnectionBase(util::TagDecoratorFactory const& tagFactory) : Taggable(tagFactory)
     {
     }
 
-    Connection(util::TagDecoratorFactory const& tagFactory, std::optional<std::string> ip)
+    ConnectionBase(util::TagDecoratorFactory const& tagFactory, std::optional<std::string> ip)
         : Taggable(tagFactory), ipMaybe(ip)
     {
     }

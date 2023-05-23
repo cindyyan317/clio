@@ -23,7 +23,7 @@
 #include <main/Build.h>
 #include <util/Profiler.h>
 #include <webserver/DOSGuard.h>
-#include <webserver2/Connect.h>
+#include <webserver2/ConnectionBase.h>
 #include <webserver2/PlainWsSession.h>
 #include <webserver2/SslWsSession.h>
 
@@ -50,7 +50,7 @@ static std::string defaultResponse =
 
 // From Boost Beast examples http_server_flex.cpp
 template <template <class> class Derived, class Callback>
-class HttpBase : public Connection
+class HttpBase : public ConnectionBase
 {
     // using Callback = typename Derived::CallbackType;
 
@@ -152,7 +152,7 @@ public:
         clio::DOSGuard& dosGuard,
         Callback& callback,
         boost::beast::flat_buffer buffer)
-        : Connection(tagFactory)
+        : ConnectionBase(tagFactory)
         , lambda_(*this)
         , buffer_(std::move(buffer))
         , ioc_(ioc)

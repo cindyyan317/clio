@@ -25,26 +25,27 @@
 
 #include <iostream>
 
+template <class Engine, class ETL>
 class RPCExecutor
 {
     std::shared_ptr<BackendInterface const> backend_;
-    std::shared_ptr<RPC::RPCEngine> rpcEngine_;
-    std::shared_ptr<ReportingETL const> etl_;
+    std::shared_ptr<Engine> rpcEngine_;
+    std::shared_ptr<ETL const> etl_;
     // sub tag of web session's tag
     util::TagDecoratorFactory const& tagFactory_;
 
 public:
     RPCExecutor(
         std::shared_ptr<BackendInterface const> backend,
-        std::shared_ptr<RPC::RPCEngine> rpcEngine,
-        std::shared_ptr<ReportingETL const> etl,
+        std::shared_ptr<Engine> rpcEngine,
+        std::shared_ptr<ETL const> etl,
         util::TagDecoratorFactory const& tagFactory)
         : backend_(backend), rpcEngine_(rpcEngine), etl_(etl), tagFactory_(tagFactory)
     {
     }
 
     void
-    operator()(boost::json::object&& req, std::shared_ptr<ServerNG::WsBase> ws, ServerNG::Connection& conn)
+    operator()(boost::json::object&& req, std::shared_ptr<ServerNG::WsBase> ws, ServerNG::ConnectionBase& conn)
     {
         if (!rpcEngine_->post(
                 [&, this](boost::asio::yield_context yc) { handleRequest(yc, std::move(req), ws, conn); },
@@ -65,9 +66,9 @@ private:
         boost::asio::yield_context& yc,
         boost::json::object&& request,
         std::shared_ptr<ServerNG::WsBase> const& ws,
-        ServerNG::Connection& conn)
+        ServerNG::ConnectionBase& conn)
     {
-        if (!request.contains("params"))
+        if (!ws && !request.contains("params"))
             request["params"] = boost::json::array({boost::json::object{}});
 
         try
@@ -82,6 +83,7 @@ private:
                 conn.send(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcBAD_SYNTAX)), http::status::ok);
 
             boost::json::object response;
+            auto const id = request.contains("id") ? request.at("id") : nullptr;
             auto [v, timeDiff] = util::timed([&]() { return rpcEngine_->buildResponse(*context); });
 
             auto us = std::chrono::duration<int, std::milli>(timeDiff);
@@ -91,8 +93,19 @@ private:
             {
                 rpcEngine_->notifyErrored(context->method);
                 auto error = RPC::makeError(*status);
-                error["request"] = request;
-                response["result"] = error;
+                if (ws)
+                {
+                    if (!id.is_null())
+                        error["id"] = id;
+
+                    error["request"] = request;
+                    response = std::move(error);
+                }
+                else
+                {
+                    error["request"] = request;
+                    response["result"] = error;
+                }
                 conn.perfLog.debug() << conn.tag() << "Encountered error: " << boost::json::serialize(response);
             }
             else
@@ -102,14 +115,37 @@ private:
 
                 rpcEngine_->notifyComplete(context->method, us);
 
-                auto result = std::get<boost::json::object>(v);
-                if (result.contains("result") && result.at("result").is_object())
-                    result = result.at("result").as_object();
+                auto& result = std::get<boost::json::object>(v);
+                auto const isForwarded = result.contains("forwarded") && result.at("forwarded").is_bool() &&
+                    result.at("forwarded").as_bool();
 
-                if (!result.contains("error"))
-                    result["status"] = "success";
-
-                response["result"] = result;
+                // if the result is forwarded - just use it as is
+                // the response has "result" inside
+                // but keep all default fields in the response too.
+                if (isForwarded)
+                {
+                    for (auto const& [k, v] : result)
+                        response.insert_or_assign(k, v);
+                }
+                else
+                {
+                    response["result"] = result;
+                }
+                // for ws , there is additional field "status" in response
+                // otherwise , the "status" is in the "result" field
+                if (ws)
+                {
+                    if (!id.is_null())
+                        response["id"] = id;
+                    if (!response.contains("error"))
+                        response["status"] = "success";
+                    response["type"] = "response";
+                }
+                else
+                {
+                    if (response.contains("result") && !response["result"].as_object().contains("error"))
+                        response["result"].as_object()["status"] = "success";
+                }
             }
 
             boost::json::array warnings;

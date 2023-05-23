@@ -138,7 +138,7 @@ class EchoExecutor
 {
 public:
     void
-    operator()(boost::json::object&& req, std::shared_ptr<ServerNG::WsBase> ws, ServerNG::Connection& conn)
+    operator()(boost::json::object&& req, std::shared_ptr<ServerNG::WsBase> ws, ServerNG::ConnectionBase& conn)
     {
         std::cout << "req:" << req << std::endl;
         conn.send(boost::json::serialize(req), http::status::ok);

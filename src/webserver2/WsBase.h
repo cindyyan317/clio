@@ -23,7 +23,7 @@
 #include <subscriptions/Message.h>
 #include <util/Profiler.h>
 #include <webserver/DOSGuard.h>
-#include <webserver2/Connect.h>
+#include <webserver2/ConnectionBase.h>
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
@@ -53,15 +53,15 @@ getDefaultWsResponse(boost::json::value const& id)
     return defaultResp;
 }
 
-class WsBase : public Connection
+class WsBase : public ConnectionBase
 {
 protected:
     boost::system::error_code ec_;
 
 public:
-    using Connection::send;
+    using ConnectionBase::send;
     explicit WsBase(util::TagDecoratorFactory const& tagFactory, std::optional<std::string> ip)
-        : Connection{tagFactory, ip}
+        : ConnectionBase{tagFactory, ip}
     {
     }
 
@@ -206,6 +206,14 @@ public:
     void
     send(std::string&& msg, http::status status = http::status::ok) override
     {
+        if (!dosGuard_.add(*ipMaybe, msg.size()))
+        {
+            auto jsonResponse = boost::json::parse(msg).as_object();
+            jsonResponse["warning"] = "load";
+            jsonResponse["warnings"].as_array().push_back(RPC::makeWarning(RPC::warnRPC_RATE_LIMIT));
+            // reserialize when we need to include this warning
+            msg = boost::json::serialize(jsonResponse);
+        }
         auto sharedMsg = std::make_shared<Message>(std::move(msg));
         send(sharedMsg);
     }
@@ -371,7 +379,6 @@ public:
 
             auto responseStr = boost::json::serialize(e);
             log.trace() << responseStr;
-            dosGuard_.add(*ip, responseStr.size());
             send(std::move(responseStr));
         };
 
