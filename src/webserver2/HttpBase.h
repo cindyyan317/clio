@@ -221,26 +221,28 @@ public:
             return derived().upgrade();
         }
 
-        // to avoid overwhelm work queue, the request limit check should be
-        // before posting to queue the web socket creation will be guarded via
-        // connection limit
-        if (!dosGuard_.request(clientIp))
-        {
-            return lambda_(httpResponse(http::status::service_unavailable, "text/plain", "Server is overloaded"));
-        }
-
         if (req_.method() != http::verb::post)
         {
             return lambda_(httpResponse(http::status::bad_request, "text/html", "Expected a POST request"));
         }
 
+        // to avoid overwhelm work queue, the request limit check should be
+        // before posting to queue the web socket creation will be guarded via
+        // connection limit
+        if (!dosGuard_.request(clientIp))
+        {
+            return lambda_(httpResponse(
+                http::status::service_unavailable,
+                "text/plain",
+                boost::json::serialize(RPC::makeError(RPC::RippledError::rpcSLOW_DOWN))));
+        }
+
         log.info() << tag() << "Received request from ip = " << clientIp << " - posting to WorkQueue";
 
+        auto request = boost::json::object{};
         try
         {
-            auto request = boost::json::parse(req_.body()).as_object();
-            callback_(std::move(request), nullptr, *this);
-            return;
+            request = boost::json::parse(req_.body()).as_object();
         }
         catch (boost::exception const& e)
         {
@@ -248,6 +250,18 @@ public:
                 http::status::ok,
                 "application/json",
                 boost::json::serialize(RPC::makeError(RPC::RippledError::rpcBAD_SYNTAX))));
+        }
+        try
+        {
+            callback_(std::move(request), nullptr, *this);
+        }
+        catch (std::exception const& e)
+        {
+            perfLog.error() << tag() << "Caught exception : " << e.what();
+            return lambda_(httpResponse(
+                http::status::internal_server_error,
+                "application/json",
+                boost::json::serialize(RPC::makeError(RPC::RippledError::rpcINTERNAL))));
         }
     }
 
@@ -258,7 +272,10 @@ public:
         {
             auto jsonResponse = boost::json::parse(msg).as_object();
             jsonResponse["warning"] = "load";
-            jsonResponse["warnings"].as_array().push_back(RPC::makeWarning(RPC::warnRPC_RATE_LIMIT));
+            if (jsonResponse.contains("warnings") && jsonResponse["warnings"].is_array())
+                jsonResponse["warnings"].as_array().push_back(RPC::makeWarning(RPC::warnRPC_RATE_LIMIT));
+            else
+                jsonResponse["warnings"] = boost::json::array{RPC::makeWarning(RPC::warnRPC_RATE_LIMIT)};
             // reserialize when we need to include this warning
             msg = boost::json::serialize(jsonResponse);
         }

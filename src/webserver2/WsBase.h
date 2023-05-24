@@ -192,18 +192,24 @@ public:
     }
 
     void
-    send(std::string&& msg, http::status status = http::status::ok) override
+    send(std::string&& msg, http::status _ = http::status::ok) override
     {
+        std::cout << "send" << msg.size() << std::endl;
         if (!dosGuard_.add(clientIp, msg.size()))
         {
             auto jsonResponse = boost::json::parse(msg).as_object();
             jsonResponse["warning"] = "load";
-            jsonResponse["warnings"].as_array().push_back(RPC::makeWarning(RPC::warnRPC_RATE_LIMIT));
+
+            if (jsonResponse.contains("warnings") && jsonResponse["warnings"].is_array())
+                jsonResponse["warnings"].as_array().push_back(RPC::makeWarning(RPC::warnRPC_RATE_LIMIT));
+            else
+                jsonResponse["warnings"] = boost::json::array{RPC::makeWarning(RPC::warnRPC_RATE_LIMIT)};
+
             // reserialize when we need to include this warning
             msg = boost::json::serialize(jsonResponse);
         }
         auto sharedMsg = std::make_shared<Message>(std::move(msg));
-        send(sharedMsg);
+        send(std::move(sharedMsg));
     }
 
     void
@@ -257,16 +263,17 @@ public:
 
         perfLog.info() << tag() << "Received request from ip = " << this->clientIp;
 
-        auto sendError = [this](auto error, boost::json::value const& id, boost::json::value const& request) {
+        auto sendError = [this](auto error, boost::json::value const& request) {
             auto e = RPC::makeError(error);
 
-            if (!id.is_null())
-                e["id"] = id;
+            if (request.is_object() && request.as_object().contains("id"))
+                e["id"] = request.as_object().at("id");
             e["request"] = request;
 
             auto responseStr = boost::json::serialize(e);
             log.trace() << responseStr;
-            send(std::move(responseStr));
+            auto sharedMsg = std::make_shared<Message>(std::move(responseStr));
+            send(std::move(sharedMsg));
         };
 
         std::string msg{static_cast<char const*>(buffer_.data().data()), buffer_.size()};
@@ -285,18 +292,26 @@ public:
         // dosGuard served request++ and check ip address
         if (!dosGuard_.request(clientIp))
         {
-            sendError(RPC::RippledError::rpcSLOW_DOWN, nullptr, raw);
+            sendError(RPC::RippledError::rpcSLOW_DOWN, raw);
         }
         else if (!raw.is_object())
         {
             // handle invalid request and async read again
-            sendError(RPC::RippledError::rpcINVALID_PARAMS, nullptr, raw);
+            sendError(RPC::RippledError::rpcBAD_SYNTAX, raw);
         }
         else
         {
             auto request = raw.as_object();
             perfLog.debug() << tag() << "Adding to work queue";
-            callback_(std::move(request), shared_from_this(), *this);
+            try
+            {
+                callback_(std::move(request), shared_from_this(), *this);
+            }
+            catch (std::exception const& e)
+            {
+                perfLog.error() << tag() << "Caught exception : " << e.what();
+                sendError(RPC::RippledError::rpcINTERNAL, raw);
+            }
         }
 
         doRead();

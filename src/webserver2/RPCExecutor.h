@@ -33,7 +33,8 @@ class RPCExecutor
     std::shared_ptr<ETL const> etl_;
     // sub tag of web session's tag
     util::TagDecoratorFactory const& tagFactory_;
-    std::shared_ptr<SubscriptionManager> subscriptions_;
+    // subscription manager holds the shared_ptr of this class
+    std::weak_ptr<SubscriptionManager> subscriptions_;
 
 public:
     RPCExecutor(
@@ -60,7 +61,8 @@ public:
     void
     operator()(boost::beast::error_code ec, std::shared_ptr<ServerNG::WsBase> ws)
     {
-        // subscriptions_->cleanup(ws);
+        // if (auto manager = subscriptions_.lock(); manager)
+        //     manager->cleanup(derived().shared_from_this());
     }
 
 private:
