@@ -41,55 +41,8 @@ using tcp = boost::asio::ip::tcp;
 
 namespace ServerNG {
 
-inline boost::json::object
-getDefaultWsResponse(boost::json::value const& id)
-{
-    boost::json::object defaultResp = {};
-    if (!id.is_null())
-        defaultResp["id"] = id;
-
-    defaultResp["status"] = "success";
-    defaultResp["type"] = "response";
-
-    return defaultResp;
-}
-
-class WsBase : public ConnectionBase
-{
-protected:
-    boost::system::error_code ec_;
-
-public:
-    using ConnectionBase::send;
-    explicit WsBase(util::TagDecoratorFactory const& tagFactory, std::string const& ip) : ConnectionBase{tagFactory, ip}
-    {
-    }
-
-    /**
-     * @brief Send, that enables SubscriptionManager to publish to clients
-     * @param msg The message to send
-     */
-    virtual void
-    send(std::shared_ptr<Message> msg) = 0;
-
-    virtual ~WsBase() = default;
-
-    /**
-     * @brief Indicates whether the connection had an error and is considered
-     * dead
-     *
-     * @return true
-     * @return false
-     */
-    bool
-    dead()
-    {
-        return ec_ != boost::system::error_code{};
-    }
-};
-
 template <template <class> class Derived, class Callback>
-class WsSession : public WsBase, public std::enable_shared_from_this<WsSession<Derived, Callback>>
+class WsSession : public ConnectionBase, public std::enable_shared_from_this<WsSession<Derived, Callback>>
 {
     using std::enable_shared_from_this<WsSession<Derived, Callback>>::shared_from_this;
 
@@ -101,7 +54,7 @@ class WsSession : public WsBase, public std::enable_shared_from_this<WsSession<D
     std::mutex mtx_;
 
     bool sending_ = false;
-    std::queue<std::shared_ptr<Message>> messages_;
+    std::queue<std::shared_ptr<std::string>> messages_;
     Callback callback_;
 
 protected:
@@ -126,7 +79,7 @@ public:
         clio::DOSGuard& dosGuard,
         Callback callback,
         boost::beast::flat_buffer&& buffer)
-        : WsBase(tagFactory, ip)
+        : ConnectionBase(tagFactory, ip)
         , buffer_(std::move(buffer))
         , ioc_(ioc)
         , tagFactory_(tagFactory)
@@ -182,7 +135,7 @@ public:
     }
 
     void
-    send(std::shared_ptr<Message> msg) override
+    send(std::shared_ptr<std::string> msg) override
     {
         net::dispatch(
             derived().ws().get_executor(), [this, self = derived().shared_from_this(), msg = std::move(msg)]() {
@@ -194,7 +147,6 @@ public:
     void
     send(std::string&& msg, http::status _ = http::status::ok) override
     {
-        std::cout << "send" << msg.size() << std::endl;
         if (!dosGuard_.add(clientIp, msg.size()))
         {
             auto jsonResponse = boost::json::parse(msg).as_object();
@@ -208,7 +160,7 @@ public:
             // reserialize when we need to include this warning
             msg = boost::json::serialize(jsonResponse);
         }
-        auto sharedMsg = std::make_shared<Message>(std::move(msg));
+        auto sharedMsg = std::make_shared<std::string>(std::move(msg));
         send(std::move(sharedMsg));
     }
 
@@ -272,7 +224,7 @@ public:
 
             auto responseStr = boost::json::serialize(e);
             log.trace() << responseStr;
-            auto sharedMsg = std::make_shared<Message>(std::move(responseStr));
+            auto sharedMsg = std::make_shared<std::string>(std::move(responseStr));
             send(std::move(sharedMsg));
         };
 

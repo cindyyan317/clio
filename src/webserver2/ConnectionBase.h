@@ -29,6 +29,10 @@ namespace http = boost::beast::http;
 
 struct ConnectionBase : public util::Taggable
 {
+protected:
+    boost::system::error_code ec_;
+
+public:
     clio::Logger log{"WebServer"};
     clio::Logger perfLog{"Performance"};
     std::string const clientIp;
@@ -37,7 +41,36 @@ struct ConnectionBase : public util::Taggable
     {
     }
 
+    /**
+     * @brief Send, that enables SubscriptionManager to publish to clients
+     * @param msg The message to send
+     */
     virtual void
     send(std::string&& msg, http::status status = http::status::ok) = 0;
+
+    /**
+     * @brief Send, that enables SubscriptionManager to publish to clients
+     * @param msg The message to send
+     */
+    virtual void
+    send(std::shared_ptr<std::string> msg)
+    {
+        throw std::runtime_error("web server can not send the shared payload");
+    }
+
+    /**
+     * @brief Indicates whether the connection had an error and is considered
+     * dead
+     *
+     * @return true
+     * @return false
+     */
+    bool
+    dead()
+    {
+        return ec_ != boost::system::error_code{};
+    }
+
+    virtual ~ConnectionBase() = default;
 };
 }  // namespace ServerNG

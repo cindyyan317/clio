@@ -59,7 +59,7 @@ optional<Web::Context>
 make_WsContext(
     boost::asio::yield_context& yc,
     boost::json::object const& request,
-    shared_ptr<ServerNG::WsBase> const& session,
+    shared_ptr<ServerNG::ConnectionBase> const& session,
     util::TagDecoratorFactory const& tagFactory,
     Backend::LedgerRange const& range,
     string const& clientIp)

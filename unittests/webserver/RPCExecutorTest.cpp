@@ -54,7 +54,7 @@ public:
     bool
     post(Fn&& func, std::string const& ip)
     {
-        boost::asio::spawn(ioc_, [f = std::move(func)](auto yield) { f(yield); });
+        boost::asio::spawn(ioc_, [f = std::move(func)](auto& yield) { f(yield); });
         return true;
     }
 
@@ -69,12 +69,12 @@ private:
     std::optional<std::thread> runner_;
 };
 
-struct MockWsBase : public ServerNG::WsBase
+struct MockWsBase : public ServerNG::ConnectionBase
 {
     std::string message;
 
     void
-    send(std::shared_ptr<Message> msg_type) override
+    send(std::shared_ptr<std::string> msg_type) override
     {
         message += std::string(msg_type->data());
     }
@@ -85,7 +85,7 @@ struct MockWsBase : public ServerNG::WsBase
         message += std::string(msg.data());
     }
 
-    MockWsBase(util::TagDecoratorFactory const& factory) : ServerNG::WsBase(factory, "localhost.fake.ip")
+    MockWsBase(util::TagDecoratorFactory const& factory) : ServerNG::ConnectionBase(factory, "localhost.fake.ip")
     {
     }
 };

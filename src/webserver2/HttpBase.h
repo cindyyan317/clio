@@ -43,7 +43,6 @@ namespace ssl = boost::asio::ssl;
 using tcp = boost::asio::ip::tcp;
 namespace ServerNG {
 
-// From Boost Beast examples http_server_flex.cpp
 template <template <class> class Derived, class Callback>
 class HttpBase : public ConnectionBase
 {
@@ -88,7 +87,6 @@ class HttpBase : public ConnectionBase
         }
     };
 
-    boost::system::error_code ec_;
     std::shared_ptr<void> res_;
     send_lambda lambda_;
 
@@ -100,12 +98,6 @@ protected:
     clio::DOSGuard& dosGuard_;
     util::TagDecoratorFactory const& tagFactory_;
     Callback& callback_;
-
-    bool
-    dead()
-    {
-        return ec_ != boost::system::error_code{};
-    }
 
     inline void
     httpFail(boost::beast::error_code ec, char const* what)

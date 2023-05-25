@@ -161,13 +161,13 @@ class EchoExecutor
 {
 public:
     void
-    operator()(boost::json::object&& req, std::shared_ptr<ServerNG::WsBase> ws, ServerNG::ConnectionBase& conn)
+    operator()(boost::json::object&& req, std::shared_ptr<ServerNG::ConnectionBase> ws, ServerNG::ConnectionBase& conn)
     {
         conn.send(boost::json::serialize(req), http::status::ok);
     }
 
     void
-    operator()(boost::beast::error_code ec, std::shared_ptr<ServerNG::WsBase> ws)
+    operator()(boost::beast::error_code ec, std::shared_ptr<ServerNG::ConnectionBase> ws)
     {
     }
 };
@@ -176,13 +176,13 @@ class ExceptionExecutor
 {
 public:
     void
-    operator()(boost::json::object&& req, std::shared_ptr<ServerNG::WsBase> ws, ServerNG::ConnectionBase& conn)
+    operator()(boost::json::object&& req, std::shared_ptr<ServerNG::ConnectionBase> ws, ServerNG::ConnectionBase& conn)
     {
         throw std::runtime_error("MyError");
     }
 
     void
-    operator()(boost::beast::error_code ec, std::shared_ptr<ServerNG::WsBase> ws)
+    operator()(boost::beast::error_code ec, std::shared_ptr<ServerNG::ConnectionBase> ws)
     {
     }
 };

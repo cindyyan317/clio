@@ -48,7 +48,7 @@ public:
     }
 
     void
-    operator()(boost::json::object&& req, std::shared_ptr<ServerNG::WsBase> ws, ServerNG::ConnectionBase& conn)
+    operator()(boost::json::object&& req, std::shared_ptr<ServerNG::ConnectionBase> ws, ServerNG::ConnectionBase& conn)
     {
         if (!rpcEngine_->post(
                 [&, this](boost::asio::yield_context yc) { handleRequest(yc, std::move(req), ws, conn); },
@@ -59,7 +59,7 @@ public:
     }
 
     void
-    operator()(boost::beast::error_code ec, std::shared_ptr<ServerNG::WsBase> ws)
+    operator()(boost::beast::error_code ec, std::shared_ptr<ServerNG::ConnectionBase> ws)
     {
         // if (auto manager = subscriptions_.lock(); manager)
         //     manager->cleanup(derived().shared_from_this());
@@ -70,7 +70,7 @@ private:
     handleRequest(
         boost::asio::yield_context& yc,
         boost::json::object&& request,
-        std::shared_ptr<ServerNG::WsBase> const& ws,
+        std::shared_ptr<ServerNG::ConnectionBase> const& ws,
         ServerNG::ConnectionBase& connection)
     {
         connection.perfLog.debug() << connection.tag() << "Received request from work queue: " << request;

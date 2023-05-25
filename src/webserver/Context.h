@@ -43,7 +43,7 @@ struct Context : public util::Taggable
     std::uint32_t version;
     boost::json::object const& params;
     std::shared_ptr<WsBase> session;
-    std::shared_ptr<ServerNG::WsBase> ngSession;
+    std::shared_ptr<ServerNG::ConnectionBase> ngSession;
     Backend::LedgerRange const& range;
     std::string clientIp;
 
@@ -73,7 +73,7 @@ struct Context : public util::Taggable
         std::string const& command_,
         std::uint32_t version_,
         boost::json::object const& params_,
-        std::shared_ptr<ServerNG::WsBase> const& session_,
+        std::shared_ptr<ServerNG::ConnectionBase> const& session_,
         util::TagDecoratorFactory const& tagFactory_,
         Backend::LedgerRange const& range_,
         std::string const& clientIp_,
