@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 /*
     This file is part of clio: https://github.com/XRPLF/clio
-    Copyright (c) 2022, the clio developers.
+    Copyright (c) 2023, the clio developers.
 
     Permission to use, copy, modify, and distribute this software for any
     purpose with or without fee is hereby granted, provided that the above
@@ -20,12 +20,6 @@
 #pragma once
 
 #include <webserver2/WsBase.h>
-
-namespace http = boost::beast::http;
-namespace net = boost::asio;
-namespace ssl = boost::asio::ssl;
-namespace websocket = boost::beast::websocket;
-using tcp = boost::asio::ip::tcp;
 
 namespace ServerNG {
 

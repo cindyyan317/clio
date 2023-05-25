@@ -21,7 +21,6 @@
 
 #include <log/Logger.h>
 #include <rpc/common/Types.h>
-#include <subscriptions/Message.h>
 #include <util/Profiler.h>
 #include <webserver/DOSGuard.h>
 #include <webserver2/ConnectionBase.h>
@@ -31,13 +30,6 @@
 
 #include <iostream>
 #include <memory>
-
-// TODO: Consider removing these. Visible to anyone including this header.
-namespace http = boost::beast::http;
-namespace net = boost::asio;
-namespace ssl = boost::asio::ssl;
-namespace websocket = boost::beast::websocket;
-using tcp = boost::asio::ip::tcp;
 
 namespace ServerNG {
 
@@ -64,7 +56,6 @@ protected:
         if (!ec_ && ec != boost::asio::error::operation_aborted)
         {
             ec_ = ec;
-            std::cout << "wsFail" << what << std::endl;
             perfLog.info() << tag() << ": " << what << ": " << ec.message();
             boost::beast::get_lowest_layer(derived().ws()).socket().close(ec);
             callback_(ec, derived().shared_from_this());
@@ -106,7 +97,7 @@ public:
     {
         sending_ = true;
         derived().ws().async_write(
-            net::buffer(messages_.front()->data(), messages_.front()->size()),
+            boost::asio::buffer(messages_.front()->data(), messages_.front()->size()),
             boost::beast::bind_front_handler(&WsSession::onWrite, derived().shared_from_this()));
     }
 
@@ -137,7 +128,7 @@ public:
     void
     send(std::shared_ptr<std::string> msg) override
     {
-        net::dispatch(
+        boost::asio::dispatch(
             derived().ws().get_executor(), [this, self = derived().shared_from_this(), msg = std::move(msg)]() {
                 messages_.push(std::move(msg));
                 maybeSendNext();
@@ -167,6 +158,7 @@ public:
     void
     run(http::request<http::string_body> req)
     {
+        using namespace boost::beast;
         // Set suggested timeout settings for the websocket
         derived().ws().set_option(websocket::stream_base::timeout::suggested(boost::beast::role_type::server));
 

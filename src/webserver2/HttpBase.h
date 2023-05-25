@@ -36,12 +36,10 @@
 #include <memory>
 #include <string>
 
-// TODO: consider removing those - visible to anyone including this header
-namespace http = boost::beast::http;
-namespace net = boost::asio;
-namespace ssl = boost::asio::ssl;
-using tcp = boost::asio::ip::tcp;
 namespace ServerNG {
+
+// using namespace boost::beast::http;
+using tcp = boost::asio::ip::tcp;
 
 template <template <class> class Derived, class Callback>
 class HttpBase : public ConnectionBase
@@ -119,7 +117,7 @@ protected:
         // Therefore, if we see a short read here, it has occurred
         // after the message has been completed, so it is safe to ignore it.
 
-        if (ec == net::ssl::error::stream_truncated)
+        if (ec == boost::asio::ssl::error::stream_truncated)
             return;
 
         if (!ec_ && ec != boost::asio::error::operation_aborted)

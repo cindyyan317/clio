@@ -54,7 +54,7 @@ public:
     bool
     post(Fn&& func, std::string const& ip)
     {
-        boost::asio::spawn(ioc_, [f = std::move(func)](auto& yield) { f(yield); });
+        boost::asio::spawn(ioc_, [f = std::move(func)](auto yield) { f(yield); });
         return true;
     }
 

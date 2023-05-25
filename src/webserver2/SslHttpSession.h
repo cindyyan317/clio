@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 /*
     This file is part of clio: https://github.com/XRPLF/clio
-    Copyright (c) 2022, the clio developers.
+    Copyright (c) 2023, the clio developers.
 
     Permission to use, copy, modify, and distribute this software for any
     purpose with or without fee is hereby granted, provided that the above
@@ -21,12 +21,10 @@
 
 #include <webserver2/HttpBase.h>
 
-namespace http = boost::beast::http;
-namespace net = boost::asio;
-namespace ssl = boost::asio::ssl;
+namespace ServerNG {
+
 using tcp = boost::asio::ip::tcp;
 
-namespace ServerNG {
 // Handles an HTTPS server connection
 template <class Callback>
 class SslHttpSession : public HttpBase<SslHttpSession, Callback>,
@@ -62,6 +60,7 @@ public:
     {
         return stream_;
     }
+
     boost::beast::ssl_stream<boost::beast::tcp_stream>
     releaseStream()
     {
@@ -75,7 +74,7 @@ public:
         auto self = this->shared_from_this();
         // We need to be executing within a strand to perform async operations
         // on the I/O objects in this session.
-        net::dispatch(stream_.get_executor(), [self]() {
+        boost::asio::dispatch(stream_.get_executor(), [self]() {
             // Set the timeout.
             boost::beast::get_lowest_layer(self->stream()).expires_after(std::chrono::seconds(30));
 
@@ -104,7 +103,6 @@ public:
     {
         // Set the timeout.
         boost::beast::get_lowest_layer(stream_).expires_after(std::chrono::seconds(30));
-
         // Perform the SSL shutdown
         stream_.async_shutdown(boost::beast::bind_front_handler(&SslHttpSession::onShutdown, this->shared_from_this()));
     }
@@ -114,7 +112,6 @@ public:
     {
         if (ec)
             return this->httpFail(ec, "shutdown");
-
         // At this point the connection is closed gracefully
     }
 

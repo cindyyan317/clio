@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 /*
     This file is part of clio: https://github.com/XRPLF/clio
-    Copyright (c) 2022, the clio developers.
+    Copyright (c) 2023, the clio developers.
 
     Permission to use, copy, modify, and distribute this software for any
     purpose with or without fee is hereby granted, provided that the above
@@ -21,12 +21,10 @@
 
 #include <webserver2/HttpBase.h>
 
-namespace http = boost::beast::http;
-namespace net = boost::asio;
-namespace ssl = boost::asio::ssl;
+namespace ServerNG {
+
 using tcp = boost::asio::ip::tcp;
 
-namespace ServerNG {
 // Handles an HTTP server connection
 template <class Callback>
 class HttpSession : public HttpBase<HttpSession, Callback>, public std::enable_shared_from_this<HttpSession<Callback>>
@@ -75,7 +73,7 @@ public:
         // on the I/O objects in this HttpSession. Although not strictly
         // necessary for single-threaded contexts, this example code is written
         // to be thread-safe by default.
-        net::dispatch(
+        boost::asio::dispatch(
             stream_.get_executor(),
             boost::beast::bind_front_handler(&HttpBase<HttpSession, Callback>::doRead, this->shared_from_this()));
     }
@@ -86,7 +84,6 @@ public:
         // Send a TCP shutdown
         boost::beast::error_code ec;
         stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
-
         // At this point the connection is closed gracefully
     }
 

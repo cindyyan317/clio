@@ -427,7 +427,6 @@ handleRequest(
             rpcEngine->notifyComplete(context->method, us);
 
             auto result = std::get<boost::json::object>(v);
-            std::cout << "xinmeng " << result << std::endl;
             if (result.contains("result") && result.at("result").is_object())
                 result = result.at("result").as_object();
 

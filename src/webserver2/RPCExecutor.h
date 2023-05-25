@@ -23,8 +23,6 @@
 
 #include <boost/json/parse.hpp>
 
-#include <iostream>
-
 template <class Engine, class ETL>
 class RPCExecutor
 {
@@ -74,6 +72,7 @@ private:
         ServerNG::ConnectionBase& connection)
     {
         connection.perfLog.debug() << connection.tag() << "Received request from work queue: " << request;
+        connection.log.info() << connection.tag() << "Received request from work queue : " << request;
 
         if (!ws && !request.contains("params"))
             request["params"] = boost::json::array({boost::json::object{}});
@@ -94,7 +93,6 @@ private:
                 return boost::json::object{{"result", e}};
             }
         };
-
         try
         {
             auto const range = backend_->fetchLedgerRange();
@@ -106,8 +104,11 @@ private:
             auto context = ws ? RPC::make_WsContext(yc, request, ws, tagFactory_, *range, connection.clientIp)
                               : RPC::make_HttpContext(yc, request, tagFactory_, *range, connection.clientIp);
             if (!context)
+            {
+                connection.perfLog.warn() << connection.tag() << "Could not create RPC context";
                 return connection.send(
                     boost::json::serialize(composeError(RPC::RippledError::rpcBAD_SYNTAX)), http::status::ok);
+            }
 
             boost::json::object response;
             auto [v, timeDiff] = util::timed([&]() { return rpcEngine_->buildResponse(*context); });
