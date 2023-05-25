@@ -26,7 +26,7 @@ namespace ServerNG {
 using tcp = boost::asio::ip::tcp;
 
 // Handles an HTTPS server connection
-template <class Callback>
+template <ServerCallback Callback>
 class SslHttpSession : public HttpBase<SslHttpSession, Callback>,
                        public std::enable_shared_from_this<SslHttpSession<Callback>>
 {

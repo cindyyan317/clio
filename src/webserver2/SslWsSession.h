@@ -23,7 +23,7 @@
 
 namespace ServerNG {
 
-template <class Callback>
+template <ServerCallback Callback>
 class SslWsSession : public WsSession<SslWsSession, Callback>
 {
     boost::beast::websocket::stream<boost::beast::ssl_stream<boost::beast::tcp_stream>> ws_;
@@ -50,7 +50,7 @@ public:
     }
 };
 
-template <class Callback>
+template <ServerCallback Callback>
 class SslWsUpgrader : public std::enable_shared_from_this<SslWsUpgrader<Callback>>
 {
     boost::asio::io_context& ioc_;

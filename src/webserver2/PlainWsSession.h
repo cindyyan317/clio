@@ -23,7 +23,7 @@
 
 namespace ServerNG {
 // Echoes back all received WebSocket messages
-template <class Callback>
+template <ServerCallback Callback>
 class PlainWsSession : public WsSession<PlainWsSession, Callback>
 {
     websocket::stream<boost::beast::tcp_stream> ws_;
@@ -52,7 +52,7 @@ public:
     ~PlainWsSession() = default;
 };
 
-template <class Callback>
+template <ServerCallback Callback>
 class WsUpgrader : public std::enable_shared_from_this<WsUpgrader<Callback>>
 {
     boost::asio::io_context& ioc_;

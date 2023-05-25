@@ -26,7 +26,7 @@ namespace ServerNG {
 using tcp = boost::asio::ip::tcp;
 
 // Handles an HTTP server connection
-template <class Callback>
+template <ServerCallback Callback>
 class HttpSession : public HttpBase<HttpSession, Callback>, public std::enable_shared_from_this<HttpSession<Callback>>
 {
     boost::beast::tcp_stream stream_;

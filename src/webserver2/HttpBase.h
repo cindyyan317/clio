@@ -26,6 +26,7 @@
 #include <webserver2/ConnectionBase.h>
 #include <webserver2/PlainWsSession.h>
 #include <webserver2/SslWsSession.h>
+#include <webserver2/Type.h>
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
@@ -41,7 +42,7 @@ namespace ServerNG {
 // using namespace boost::beast::http;
 using tcp = boost::asio::ip::tcp;
 
-template <template <class> class Derived, class Callback>
+template <template <class> class Derived, ServerCallback Callback>
 class HttpBase : public ConnectionBase
 {
     // Access the derived class, this is part of

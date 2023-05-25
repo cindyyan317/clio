@@ -22,12 +22,11 @@
 #include <log/Logger.h>
 #include <webserver2/HttpSession.h>
 #include <webserver2/SslHttpSession.h>
-
-// #include <boost/beast/websocket.hpp>
+#include <webserver2/Type.h>
 
 namespace ServerNG {
 
-template <template <class> class PlainSession, template <class> class SslSession, class Callback>
+template <template <class> class PlainSession, template <class> class SslSession, ServerCallback Callback>
 class Detector : public std::enable_shared_from_this<Detector<PlainSession, SslSession, Callback>>
 {
     using std::enable_shared_from_this<Detector<PlainSession, SslSession, Callback>>::shared_from_this;
@@ -112,7 +111,7 @@ public:
     }
 };
 
-template <template <class> class PlainSession, template <class> class SslSession, class Callback>
+template <template <class> class PlainSession, template <class> class SslSession, ServerCallback Callback>
 class Server : public std::enable_shared_from_this<Server<PlainSession, SslSession, Callback>>
 {
     using std::enable_shared_from_this<Server<PlainSession, SslSession, Callback>>::shared_from_this;

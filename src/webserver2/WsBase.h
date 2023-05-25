@@ -24,6 +24,7 @@
 #include <util/Profiler.h>
 #include <webserver/DOSGuard.h>
 #include <webserver2/ConnectionBase.h>
+#include <webserver2/Type.h>
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
@@ -33,7 +34,7 @@
 
 namespace ServerNG {
 
-template <template <class> class Derived, class Callback>
+template <template <class> class Derived, ServerCallback Callback>
 class WsSession : public ConnectionBase, public std::enable_shared_from_this<WsSession<Derived, Callback>>
 {
     using std::enable_shared_from_this<WsSession<Derived, Callback>>::shared_from_this;
