@@ -40,7 +40,7 @@ struct MockWsBase : public ServerNG::ConnectionBase
     }
 
     void
-    send(std::string&& msg, http::status status = http::status::ok) override
+    send(std::string&& msg, boost::beast::http::status status = boost::beast::http::status::ok) override
     {
         message += std::string(msg.data());
     }

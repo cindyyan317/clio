@@ -17,43 +17,12 @@
 */
 //==============================================================================
 
-#include <etl/ETLSource.h>
 #include <rpc/Factories.h>
-#include <rpc/common/impl/HandlerProvider.h>
-#include <webserver/HttpBase.h>
-#include <webserver/WsBase.h>
-
-#include <boost/asio/spawn.hpp>
-
-#include <unordered_map>
 
 using namespace std;
 using namespace clio;
-using namespace RPC;
 
 namespace RPC {
-
-optional<Web::Context>
-make_WsContext(
-    boost::asio::yield_context& yc,
-    boost::json::object const& request,
-    shared_ptr<WsBase> const& session,
-    util::TagDecoratorFactory const& tagFactory,
-    Backend::LedgerRange const& range,
-    string const& clientIp)
-{
-    boost::json::value commandValue = nullptr;
-    if (!request.contains("command") && request.contains("method"))
-        commandValue = request.at("method");
-    else if (request.contains("command") && !request.contains("method"))
-        commandValue = request.at("command");
-
-    if (!commandValue.is_string())
-        return {};
-
-    string command = commandValue.as_string().c_str();
-    return make_optional<Web::Context>(yc, command, 1, request, session, tagFactory, range, clientIp);
-}
 
 optional<Web::Context>
 make_WsContext(
@@ -74,7 +43,7 @@ make_WsContext(
         return {};
 
     string command = commandValue.as_string().c_str();
-    return make_optional<Web::Context>(yc, command, 1, request, session, tagFactory, range, clientIp, true);
+    return make_optional<Web::Context>(yc, command, 1, request, session, tagFactory, range, clientIp);
 }
 
 optional<Web::Context>

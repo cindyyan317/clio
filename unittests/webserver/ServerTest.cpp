@@ -22,6 +22,7 @@
 #include <webserver2/Server.h>
 
 #include <boost/json/parse.hpp>
+#include <fmt/core.h>
 #include <gtest/gtest.h>
 
 #include <optional>

@@ -117,7 +117,7 @@ private:
     onUpgrade()
     {
         // See if it is a WebSocket Upgrade
-        if (!websocket::is_upgrade(req_))
+        if (!boost::beast::websocket::is_upgrade(req_))
         {
             return;
         }

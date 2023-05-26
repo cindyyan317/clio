@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <webserver2/details/ConnectionBase.h>
+#include <webserver2/interface/ConnectionBase.h>
 
 #include <boost/beast.hpp>
 #include <boost/json.hpp>

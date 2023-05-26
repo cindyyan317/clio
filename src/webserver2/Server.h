@@ -22,7 +22,7 @@
 #include <log/Logger.h>
 #include <webserver2/HttpSession.h>
 #include <webserver2/SslHttpSession.h>
-#include <webserver2/details/Type.h>
+#include <webserver2/interface/Concepts.h>
 
 namespace ServerNG {
 

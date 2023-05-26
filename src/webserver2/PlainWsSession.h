@@ -26,7 +26,7 @@ namespace ServerNG {
 template <ServerCallback Callback>
 class PlainWsSession : public WsSession<PlainWsSession, Callback>
 {
-    websocket::stream<boost::beast::tcp_stream> ws_;
+    boost::beast::websocket::stream<boost::beast::tcp_stream> ws_;
 
 public:
     // Take ownership of the socket
@@ -43,7 +43,7 @@ public:
     {
     }
 
-    websocket::stream<boost::beast::tcp_stream>&
+    boost::beast::websocket::stream<boost::beast::tcp_stream>&
     ws()
     {
         return ws_;
@@ -119,7 +119,7 @@ private:
     onUpgrade()
     {
         // See if it is a WebSocket Upgrade
-        if (!websocket::is_upgrade(req_))
+        if (!boost::beast::websocket::is_upgrade(req_))
             return;
 
         // Disable the timeout.

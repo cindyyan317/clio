@@ -25,6 +25,11 @@
 
 #include <string>
 
+namespace http = boost::beast::http;
+namespace net = boost::asio;
+namespace ssl = boost::asio::ssl;
+using tcp = boost::asio::ip::tcp;
+
 struct HttpSyncClient
 {
     static std::string
@@ -73,7 +78,7 @@ class WebSocketSyncClient
 
     // These objects perform our I/O
     tcp::resolver resolver_{ioc_};
-    websocket::stream<tcp::socket> ws_{ioc_};
+    boost::beast::websocket::stream<tcp::socket> ws_{ioc_};
 
 public:
     void
@@ -91,7 +96,7 @@ public:
         auto const hostPort = host + ':' + std::to_string(ep.port());
 
         // Set a decorator to change the User-Agent of the handshake
-        ws_.set_option(websocket::stream_base::decorator([](websocket::request_type& req) {
+        ws_.set_option(boost::beast::websocket::stream_base::decorator([](boost::beast::websocket::request_type& req) {
             req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " websocket-client-coro");
         }));
 
@@ -102,7 +107,7 @@ public:
     void
     disconnect()
     {
-        ws_.close(websocket::close_code::normal);
+        ws_.close(boost::beast::websocket::close_code::normal);
     }
 
     std::string
@@ -193,7 +198,7 @@ struct HttpsSyncClient
 class WebServerSslSyncClient
 {
     net::io_context ioc_;
-    std::optional<websocket::stream<boost::beast::ssl_stream<tcp::socket>>> ws_;
+    std::optional<boost::beast::websocket::stream<boost::beast::ssl_stream<tcp::socket>>> ws_;
 
 public:
     void
@@ -217,7 +222,7 @@ public:
         ws_->next_layer().handshake(ssl::stream_base::client);
 
         // Set a decorator to change the User-Agent of the handshake
-        ws_->set_option(websocket::stream_base::decorator([](websocket::request_type& req) {
+        ws_->set_option(boost::beast::websocket::stream_base::decorator([](boost::beast::websocket::request_type& req) {
             req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " websocket-client-coro");
         }));
 
@@ -228,7 +233,7 @@ public:
     void
     disconnect()
     {
-        ws_->close(websocket::close_code::normal);
+        ws_->close(boost::beast::websocket::close_code::normal);
     }
 
     std::string

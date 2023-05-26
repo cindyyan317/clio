@@ -32,7 +32,6 @@
 #include <rpc/Counters.h>
 #include <rpc/RPCEngine.h>
 #include <rpc/common/impl/HandlerProvider.h>
-#include <webserver/Listener.h>
 
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/strand.hpp>
@@ -105,7 +104,7 @@ parseCli(int argc, char* argv[])
  * @param config The configuration
  * @return std::optional<ssl::context> SSL context if certificates were parsed
  */
-std::optional<ssl::context>
+std::optional<boost::asio::ssl::context>
 parseCerts(Config const& config)
 {
     if (!config.contains("ssl_cert_file") || !config.contains("ssl_key_file"))
@@ -131,7 +130,7 @@ parseCerts(Config const& config)
     readKey.close();
     std::string key = contents.str();
 
-    ssl::context ctx{ssl::context::tlsv12};
+    boost::asio::ssl::context ctx{boost::asio::ssl::context::tlsv12};
     ctx.set_options(boost::asio::ssl::context::default_workarounds | boost::asio::ssl::context::no_sslv2);
     ctx.use_certificate_chain(boost::asio::buffer(cert.data(), cert.size()));
     ctx.use_private_key(boost::asio::buffer(key.data(), key.size()), boost::asio::ssl::context::file_format::pem);
@@ -170,9 +169,6 @@ try
 
     LogService::init(config);
     LogService::info() << "Clio version: " << Build::getClioFullVersionString();
-
-    auto ctx = parseCerts(config);
-    auto ctxRef = ctx ? std::optional<std::reference_wrapper<ssl::context>>{ctx.value()} : std::nullopt;
 
     auto const threads = config.valueOr("io_threads", 2);
     if (threads <= 0)
@@ -219,8 +215,11 @@ try
         config, backend, subscriptions, balancer, etl, dosGuard, workQueue, counters, handlerProvider);
 
     // The server handles incoming RPCs
-    auto httpServer =
-        Server::make_HttpServer(config, ioc, ctxRef, backend, rpcEngine, subscriptions, balancer, etl, dosGuard);
+    // auto ctx = parseCerts(config);
+    // auto ctxRef = ctx ? std::optional<std::reference_wrapper<boost::asio::ssl::context>>{ctx.value()} : std::nullopt;
+
+    // auto httpServer =
+    //    Server::make_HttpServer(config, ioc, ctxRef, backend, rpcEngine, subscriptions, balancer, etl, dosGuard);
 
     // Blocks until stopped.
     // When stopped, shared_ptrs fall out of scope

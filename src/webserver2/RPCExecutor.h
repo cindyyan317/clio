@@ -19,6 +19,9 @@
 
 #pragma once
 
+#include <rpc/Factories.h>
+#include <rpc/RPCHelpers.h>
+
 #include <webserver2/details/WsBase.h>
 
 #include <boost/json/parse.hpp>
@@ -52,7 +55,8 @@ public:
                 [&, this](boost::asio::yield_context yc) { handleRequest(yc, std::move(req), ws, conn); },
                 conn.clientIp))
         {
-            conn.send(boost::json::serialize(RPC::makeError(RPC::RippledError::rpcTOO_BUSY)), http::status::ok);
+            conn.send(
+                boost::json::serialize(RPC::makeError(RPC::RippledError::rpcTOO_BUSY)), boost::beast::http::status::ok);
         }
     }
 
@@ -99,7 +103,8 @@ private:
             // for the error happened before the handler, we don't attach the clio warning
             if (!range)
                 return connection.send(
-                    boost::json::serialize(composeError(RPC::RippledError::rpcNOT_READY)), http::status::ok);
+                    boost::json::serialize(composeError(RPC::RippledError::rpcNOT_READY)),
+                    boost::beast::http::status::ok);
 
             auto context = ws ? RPC::make_WsContext(yc, request, ws, tagFactory_, *range, connection.clientIp)
                               : RPC::make_HttpContext(yc, request, tagFactory_, *range, connection.clientIp);
@@ -107,7 +112,8 @@ private:
             {
                 connection.perfLog.warn() << connection.tag() << "Could not create RPC context";
                 return connection.send(
-                    boost::json::serialize(composeError(RPC::RippledError::rpcBAD_SYNTAX)), http::status::ok);
+                    boost::json::serialize(composeError(RPC::RippledError::rpcBAD_SYNTAX)),
+                    boost::beast::http::status::ok);
             }
 
             boost::json::object response;
@@ -170,14 +176,14 @@ private:
                 warnings.emplace_back(RPC::makeWarning(RPC::warnRPC_OUTDATED));
 
             response["warnings"] = warnings;
-            connection.send(boost::json::serialize(response), http::status::ok);
+            connection.send(boost::json::serialize(response), boost::beast::http::status::ok);
         }
         catch (std::exception const& e)
         {
             connection.perfLog.error() << connection.tag() << "Caught exception : " << e.what();
             return connection.send(
                 boost::json::serialize(composeError(RPC::RippledError::rpcINTERNAL)),
-                http::status::internal_server_error);
+                boost::beast::http::status::internal_server_error);
         }
     }
 };
