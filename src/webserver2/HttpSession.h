@@ -19,7 +19,9 @@
 
 #pragma once
 
-#include <webserver2/HttpBase.h>
+#include <webserver2/PlainWsSession.h>
+#include <webserver2/SslWsSession.h>
+#include <webserver2/details/HttpBase.h>
 
 namespace ServerNG {
 

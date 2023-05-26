@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <webserver2/HttpBase.h>
+#include <webserver2/details/HttpBase.h>
 
 namespace ServerNG {
 

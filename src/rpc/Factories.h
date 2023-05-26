@@ -23,7 +23,7 @@
 #include <log/Logger.h>
 #include <rpc/Errors.h>
 #include <webserver/Context.h>
-#include <webserver2/WsBase.h>
+#include <webserver2/details/WsBase.h>
 
 #include <boost/asio/spawn.hpp>
 #include <boost/json.hpp>

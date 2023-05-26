@@ -23,8 +23,8 @@
 #include <rpc/common/Types.h>
 #include <util/Profiler.h>
 #include <webserver/DOSGuard.h>
-#include <webserver2/ConnectionBase.h>
-#include <webserver2/Type.h>
+#include <webserver2/details/ConnectionBase.h>
+#include <webserver2/details/Type.h>
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
