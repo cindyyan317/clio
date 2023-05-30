@@ -51,7 +51,7 @@ public:
 
     ~HttpSession()
     {
-        if (not this->upgraded_)
+        if (not this->upgraded)
             this->dosGuard().decrement(this->clientIp);
     }
 

@@ -89,7 +89,6 @@ class HttpBase : public ConnectionBase
 
 protected:
     boost::beast::flat_buffer buffer_;
-    bool upgraded_ = false;
     boost::asio::io_context& ioc_;
     http::request<http::string_body> req_;
     clio::DOSGuard& dosGuard_;
@@ -203,7 +202,7 @@ public:
 
         if (boost::beast::websocket::is_upgrade(req_))
         {
-            upgraded_ = true;
+            upgraded = true;
             // Disable the timeout.
             // The websocket::stream uses its own timeout settings.
             boost::beast::get_lowest_layer(derived().stream()).expires_never();
@@ -232,6 +231,8 @@ public:
         try
         {
             request = boost::json::parse(req_.body()).as_object();
+            if (!request.contains("params"))
+                request["params"] = boost::json::array({boost::json::object{}});
         }
         catch (boost::exception const& e)
         {
@@ -242,7 +243,7 @@ public:
         }
         try
         {
-            callback_(std::move(request), nullptr, *this);
+            callback_(std::move(request), derived().shared_from_this());
         }
         catch (std::exception const& e)
         {

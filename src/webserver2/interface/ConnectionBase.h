@@ -36,6 +36,7 @@ public:
     clio::Logger log{"WebServer"};
     clio::Logger perfLog{"Performance"};
     std::string const clientIp;
+    bool upgraded = false;
 
     ConnectionBase(util::TagDecoratorFactory const& tagFactory, std::string ip) : Taggable(tagFactory), clientIp(ip)
     {

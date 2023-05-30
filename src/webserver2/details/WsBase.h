@@ -78,6 +78,7 @@ public:
         , dosGuard_(dosGuard)
         , callback_(callback)
     {
+        upgraded = true;
         perfLog.info() << tag() << "session created";
     }
 
@@ -250,7 +251,7 @@ public:
             perfLog.debug() << tag() << "Adding to work queue";
             try
             {
-                callback_(std::move(request), shared_from_this(), *this);
+                callback_(std::move(request), shared_from_this());
             }
             catch (std::exception const& e)
             {

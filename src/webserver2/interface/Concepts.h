@@ -28,8 +28,8 @@ namespace Server {
 
 // clang-format off
 template <typename T>
-concept ServerCallback = requires(T a, boost::json::object&& req, std::shared_ptr<ConnectionBase> ws, ConnectionBase& conn, boost::beast::error_code ec) {
-    {a(std::move(req),ws,conn)};
+concept ServerCallback = requires(T a, boost::json::object&& req, std::shared_ptr<ConnectionBase> const& ws, boost::beast::error_code ec) {
+    {a(std::move(req),ws)};
     {a(ec,ws)};
 };
 // clang-format on

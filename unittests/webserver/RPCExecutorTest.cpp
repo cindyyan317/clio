@@ -83,7 +83,8 @@ TEST_F(WebRPCExecutorTest, HTTPDefaultPath)
     auto rpcExecutor = RPCExecutor<MockAsyncRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine, etl, subManager, tagFactory->with(std::cref(session->tag())));
     auto request = boost::json::parse(R"({
-                                            "method": "server_info"
+                                            "method": "server_info",
+                                            "params": [{}]
                                         })")
                        .as_object();
 
@@ -108,8 +109,8 @@ TEST_F(WebRPCExecutorTest, HTTPDefaultPath)
 
     EXPECT_CALL(*etl, lastCloseAgeSeconds()).WillOnce(testing::Return(45));
 
-    rpcExecutor(std::move(request), nullptr, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -117,6 +118,7 @@ TEST_F(WebRPCExecutorTest, HTTPDefaultPath)
 TEST_F(WebRPCExecutorTest, WsNormalPath)
 {
     auto session = std::make_shared<MockWsBase>(*tagFactory);
+    session->upgraded = true;
     auto rpcExecutor = RPCExecutor<MockAsyncRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine, etl, subManager, tagFactory->with(std::cref(session->tag())));
     auto request = boost::json::parse(R"({
@@ -148,8 +150,8 @@ TEST_F(WebRPCExecutorTest, WsNormalPath)
 
     EXPECT_CALL(*etl, lastCloseAgeSeconds()).WillOnce(testing::Return(45));
 
-    rpcExecutor(std::move(request), session, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -160,7 +162,8 @@ TEST_F(WebRPCExecutorTest, HTTPForwardedPath)
     auto rpcExecutor = RPCExecutor<MockAsyncRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine, etl, subManager, tagFactory->with(std::cref(session->tag())));
     auto request = boost::json::parse(R"({
-                                         "method": "server_info"
+                                         "method": "server_info",
+                                            "params": [{}]
                                     })")
                        .as_object();
 
@@ -192,8 +195,8 @@ TEST_F(WebRPCExecutorTest, HTTPForwardedPath)
 
     EXPECT_CALL(*etl, lastCloseAgeSeconds()).WillOnce(testing::Return(45));
 
-    rpcExecutor(std::move(request), nullptr, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -201,6 +204,7 @@ TEST_F(WebRPCExecutorTest, HTTPForwardedPath)
 TEST_F(WebRPCExecutorTest, WsForwardedPath)
 {
     auto session = std::make_shared<MockWsBase>(*tagFactory);
+    session->upgraded = true;
     auto rpcExecutor = RPCExecutor<MockAsyncRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine, etl, subManager, tagFactory->with(std::cref(session->tag())));
     auto request = boost::json::parse(R"({
@@ -239,8 +243,8 @@ TEST_F(WebRPCExecutorTest, WsForwardedPath)
 
     EXPECT_CALL(*etl, lastCloseAgeSeconds()).WillOnce(testing::Return(45));
 
-    rpcExecutor(std::move(request), session, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -292,8 +296,8 @@ TEST_F(WebRPCExecutorTest, HTTPErrorPath)
 
     EXPECT_CALL(*etl, lastCloseAgeSeconds()).WillOnce(testing::Return(45));
 
-    rpcExecutor(std::move(request), nullptr, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -301,6 +305,7 @@ TEST_F(WebRPCExecutorTest, HTTPErrorPath)
 TEST_F(WebRPCExecutorTest, WsErrorPath)
 {
     auto session = std::make_shared<MockWsBase>(*tagFactory);
+    session->upgraded = true;
     auto rpcExecutor = RPCExecutor<MockAsyncRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine, etl, subManager, tagFactory->with(std::cref(session->tag())));
     static auto constexpr response = R"({
@@ -338,8 +343,8 @@ TEST_F(WebRPCExecutorTest, WsErrorPath)
 
     EXPECT_CALL(*etl, lastCloseAgeSeconds()).WillOnce(testing::Return(45));
 
-    rpcExecutor(std::move(request), session, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -350,7 +355,8 @@ TEST_F(WebRPCExecutorTest, HTTPNotReady)
     auto rpcExecutor = RPCExecutor<MockAsyncRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine, etl, subManager, tagFactory->with(std::cref(session->tag())));
     auto request = boost::json::parse(R"({
-                                            "method": "server_info"
+                                            "method": "server_info",
+                                            "params": [{}]
                                         })")
                        .as_object();
 
@@ -372,8 +378,8 @@ TEST_F(WebRPCExecutorTest, HTTPNotReady)
                                         }
                                     })";
 
-    rpcExecutor(std::move(request), nullptr, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -381,6 +387,7 @@ TEST_F(WebRPCExecutorTest, HTTPNotReady)
 TEST_F(WebRPCExecutorTest, WsNotReady)
 {
     auto session = std::make_shared<MockWsBase>(*tagFactory);
+    session->upgraded = true;
     auto rpcExecutor = RPCExecutor<MockAsyncRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine, etl, subManager, tagFactory->with(std::cref(session->tag())));
     auto request = boost::json::parse(R"({
@@ -402,8 +409,8 @@ TEST_F(WebRPCExecutorTest, WsNotReady)
                                         }
                                     })";
 
-    rpcExecutor(std::move(request), session, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -429,18 +436,13 @@ TEST_F(WebRPCExecutorTest, HTTPBadSyntax)
                                             "status":"error",
                                             "type":"response",
                                             "request":{
-                                                "method2":"server_info",
-                                                "params":[
-                                                    {
-                                                    
-                                                    }
-                                                ]
+                                                "method2":"server_info"
                                             }
                                         }
                                     })";
 
-    rpcExecutor(std::move(request), nullptr, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -466,18 +468,13 @@ TEST_F(WebRPCExecutorTest, HTTPBadSyntaxWhenRequestSubscribe)
                                             "status":"error",
                                             "type":"response",
                                             "request":{
-                                                "method":"subscribe",
-                                                "params":[
-                                                    {
-                                                    
-                                                    }
-                                                ]
+                                                "method":"subscribe"
                                             }
                                         }
                                     })";
 
-    rpcExecutor(std::move(request), nullptr, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -485,6 +482,7 @@ TEST_F(WebRPCExecutorTest, HTTPBadSyntaxWhenRequestSubscribe)
 TEST_F(WebRPCExecutorTest, WsBadSyntax)
 {
     auto session = std::make_shared<MockWsBase>(*tagFactory);
+    session->upgraded = true;
     auto rpcExecutor = RPCExecutor<MockAsyncRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine, etl, subManager, tagFactory->with(std::cref(session->tag())));
     auto request = boost::json::parse(R"(
@@ -510,8 +508,8 @@ TEST_F(WebRPCExecutorTest, WsBadSyntax)
                                         }
                                     })";
 
-    rpcExecutor(std::move(request), session, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -553,8 +551,8 @@ TEST_F(WebRPCExecutorTest, HTTPInternalError)
     auto request = boost::json::parse(requestJSON).as_object();
     EXPECT_CALL(*rpcEngine, buildResponse(testing::_)).Times(1).WillOnce(testing::Throw(std::runtime_error("MyError")));
 
-    rpcExecutor(std::move(request), nullptr, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -562,6 +560,8 @@ TEST_F(WebRPCExecutorTest, HTTPInternalError)
 TEST_F(WebRPCExecutorTest, WsInternalError)
 {
     auto session = std::make_shared<MockWsBase>(*tagFactory);
+    session->upgraded = true;
+
     auto rpcExecutor = RPCExecutor<MockAsyncRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine, etl, subManager, tagFactory->with(std::cref(session->tag())));
     static auto constexpr response = R"({
@@ -587,8 +587,8 @@ TEST_F(WebRPCExecutorTest, WsInternalError)
     auto request = boost::json::parse(requestJSON).as_object();
     EXPECT_CALL(*rpcEngine, buildResponse(testing::_)).Times(1).WillOnce(testing::Throw(std::runtime_error("MyError")));
 
-    rpcExecutor(std::move(request), session, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -599,7 +599,8 @@ TEST_F(WebRPCExecutorTest, HTTPOutDated)
     auto rpcExecutor = RPCExecutor<MockAsyncRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine, etl, subManager, tagFactory->with(std::cref(session->tag())));
     auto request = boost::json::parse(R"({
-                                            "method": "server_info"
+                                            "method": "server_info",
+                                            "params": [{}]
                                         })")
                        .as_object();
 
@@ -628,8 +629,8 @@ TEST_F(WebRPCExecutorTest, HTTPOutDated)
 
     EXPECT_CALL(*etl, lastCloseAgeSeconds()).WillOnce(testing::Return(61));
 
-    rpcExecutor(std::move(request), nullptr, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -637,6 +638,8 @@ TEST_F(WebRPCExecutorTest, HTTPOutDated)
 TEST_F(WebRPCExecutorTest, WsOutdated)
 {
     auto session = std::make_shared<MockWsBase>(*tagFactory);
+    session->upgraded = true;
+
     auto rpcExecutor = RPCExecutor<MockAsyncRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine, etl, subManager, tagFactory->with(std::cref(session->tag())));
     auto request = boost::json::parse(R"({
@@ -672,8 +675,8 @@ TEST_F(WebRPCExecutorTest, WsOutdated)
 
     EXPECT_CALL(*etl, lastCloseAgeSeconds()).WillOnce(testing::Return(61));
 
-    rpcExecutor(std::move(request), session, *session);
-    std::this_thread::sleep_for(20ms);
+    rpcExecutor(std::move(request), session);
+    std::this_thread::sleep_for(200ms);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
     std::cout << session->message << std::endl;
 }
@@ -681,6 +684,8 @@ TEST_F(WebRPCExecutorTest, WsOutdated)
 TEST_F(WebRPCExecutorTest, WsTooBusy)
 {
     auto session = std::make_shared<MockWsBase>(*tagFactory);
+    session->upgraded = true;
+
     auto rpcEngine2 = std::make_shared<MockRPCEngine>();
     auto rpcExecutor = RPCExecutor<MockRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine2, etl, subManager, tagFactory->with(std::cref(session->tag())));
@@ -696,7 +701,7 @@ TEST_F(WebRPCExecutorTest, WsTooBusy)
     static auto constexpr response =
         R"({"error":"tooBusy","error_code":9,"error_message":"The server is too busy to help you now.","status":"error","type":"response"})";
     EXPECT_CALL(*rpcEngine2, post).WillOnce(testing::Return(false));
-    rpcExecutor(std::move(request), session, *session);
+    rpcExecutor(std::move(request), session);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
 }
 
@@ -707,7 +712,8 @@ TEST_F(WebRPCExecutorTest, HTTPTooBusy)
     auto rpcExecutor = RPCExecutor<MockRPCEngine, MockReportingETL>(
         mockBackendPtr, rpcEngine2, etl, subManager, tagFactory->with(std::cref(session->tag())));
     auto request = boost::json::parse(R"({
-                                            "method": "server_info"
+                                            "method": "server_info",
+                                            "params": [{}]
                                         })")
                        .as_object();
 
@@ -718,6 +724,6 @@ TEST_F(WebRPCExecutorTest, HTTPTooBusy)
         R"({"error":"tooBusy","error_code":9,"error_message":"The server is too busy to help you now.","status":"error","type":"response"})";
 
     EXPECT_CALL(*rpcEngine2, post).WillOnce(testing::Return(false));
-    rpcExecutor(std::move(request), nullptr, *session);
+    rpcExecutor(std::move(request), session);
     EXPECT_EQ(boost::json::parse(session->message), boost::json::parse(response));
 }

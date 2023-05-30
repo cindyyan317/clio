@@ -103,7 +103,6 @@ public:
                 ->run();
             return;
         }
-        std::cout << "Plain session" << std::endl;
         // Launch plain session
         std::make_shared<PlainSession<Callback>>(
             ioc_, stream_.release_socket(), ip, tagFactory_, dosGuard_, callback_, std::move(buffer_))
