@@ -31,7 +31,7 @@
 class MockSubscriptionManager
 {
 public:
-    using session_ptr = std::shared_ptr<ServerNG::ConnectionBase>;
+    using session_ptr = std::shared_ptr<Server::ConnectionBase>;
     MockSubscriptionManager()
     {
     }

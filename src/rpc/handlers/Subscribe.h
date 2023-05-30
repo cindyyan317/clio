@@ -141,7 +141,7 @@ private:
     subscribeToStreams(
         boost::asio::yield_context& yield,
         std::vector<std::string> const& streams,
-        std::shared_ptr<ServerNG::ConnectionBase> const& session) const
+        std::shared_ptr<Server::ConnectionBase> const& session) const
     {
         auto response = boost::json::object{};
 
@@ -167,7 +167,7 @@ private:
     void
     subscribeToAccounts(
         std::vector<std::string> const& accounts,
-        std::shared_ptr<ServerNG::ConnectionBase> const& session) const
+        std::shared_ptr<Server::ConnectionBase> const& session) const
     {
         for (auto const& account : accounts)
         {
@@ -179,7 +179,7 @@ private:
     void
     subscribeToAccountsProposed(
         std::vector<std::string> const& accounts,
-        std::shared_ptr<ServerNG::ConnectionBase> const& session) const
+        std::shared_ptr<Server::ConnectionBase> const& session) const
     {
         for (auto const& account : accounts)
         {
@@ -191,7 +191,7 @@ private:
     boost::json::array
     subscribeToBooks(
         std::vector<OrderBook> const& books,
-        std::shared_ptr<ServerNG::ConnectionBase> const& session,
+        std::shared_ptr<Server::ConnectionBase> const& session,
         boost::asio::yield_context& yield) const
     {
         static auto constexpr fetchLimit = 200;

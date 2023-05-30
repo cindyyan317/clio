@@ -21,7 +21,7 @@
 
 #include <webserver2/details/WsBase.h>
 
-namespace ServerNG {
+namespace Server {
 
 template <ServerCallback Callback>
 class SslWsSession : public WsSession<SslWsSession, Callback>
@@ -92,7 +92,7 @@ public:
         // Set the timeout.
         boost::beast::get_lowest_layer(https_).expires_after(std::chrono::seconds(30));
 
-        net::dispatch(
+        boost::asio::dispatch(
             https_.get_executor(),
             boost::beast::bind_front_handler(&SslWsUpgrader<Callback>::doUpgrade, this->shared_from_this()));
     }
@@ -131,4 +131,4 @@ private:
             ->run(std::move(req_));
     }
 };
-}  // namespace ServerNG
+}  // namespace Server

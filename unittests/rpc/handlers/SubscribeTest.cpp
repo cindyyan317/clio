@@ -62,7 +62,7 @@ protected:
     }
 
     std::shared_ptr<SubscriptionManager> subManager_;
-    std::shared_ptr<ServerNG::ConnectionBase> session_;
+    std::shared_ptr<Server::ConnectionBase> session_;
 };
 
 struct SubscribeParamTestCaseBundle

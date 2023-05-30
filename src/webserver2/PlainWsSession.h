@@ -21,7 +21,7 @@
 
 #include <webserver2/details/WsBase.h>
 
-namespace ServerNG {
+namespace Server {
 // Echoes back all received WebSocket messages
 template <ServerCallback Callback>
 class PlainWsSession : public WsSession<PlainWsSession, Callback>
@@ -94,7 +94,7 @@ public:
         // for single-threaded contexts, this example code is written to be
         // thread-safe by default.
 
-        net::dispatch(
+        boost::asio::dispatch(
             http_.get_executor(),
             boost::beast::bind_front_handler(&WsUpgrader<Callback>::doUpgrade, this->shared_from_this()));
     }
@@ -132,4 +132,4 @@ private:
     }
 };
 
-}  // namespace ServerNG
+}  // namespace Server

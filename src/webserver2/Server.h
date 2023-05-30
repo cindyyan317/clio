@@ -24,7 +24,7 @@
 #include <webserver2/SslHttpSession.h>
 #include <webserver2/interface/Concepts.h>
 
-namespace ServerNG {
+namespace Server {
 
 template <template <class> class PlainSession, template <class> class SslSession, ServerCallback Callback>
 class Detector : public std::enable_shared_from_this<Detector<PlainSession, SslSession, Callback>>
@@ -34,7 +34,7 @@ class Detector : public std::enable_shared_from_this<Detector<PlainSession, SslS
     clio::Logger log_{"WebServer"};
     boost::asio::io_context& ioc_;
     boost::beast::tcp_stream stream_;
-    std::optional<std::reference_wrapper<ssl::context>> ctx_;
+    std::optional<std::reference_wrapper<boost::asio::ssl::context>> ctx_;
     util::TagDecoratorFactory const& tagFactory_;
     clio::DOSGuard& dosGuard_;
     Callback& callback_;
@@ -44,7 +44,7 @@ public:
     Detector(
         boost::asio::io_context& ioc,
         tcp::socket&& socket,
-        std::optional<std::reference_wrapper<ssl::context>> ctx,
+        std::optional<std::reference_wrapper<boost::asio::ssl::context>> ctx,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
         Callback& callback)
@@ -60,7 +60,7 @@ public:
     inline void
     fail(boost::system::error_code ec, char const* message)
     {
-        if (ec == net::ssl::error::stream_truncated)
+        if (ec == boost::asio::ssl::error::stream_truncated)
             return;
 
         log_.info() << "Detector failed (" << message << "): " << ec.message();
@@ -118,7 +118,7 @@ class Server : public std::enable_shared_from_this<Server<PlainSession, SslSessi
 
     clio::Logger log_{"WebServer"};
     boost::asio::io_context& ioc_;
-    std::optional<std::reference_wrapper<ssl::context>> ctx_;
+    std::optional<std::reference_wrapper<boost::asio::ssl::context>> ctx_;
     util::TagDecoratorFactory tagFactory_;
     clio::DOSGuard& dosGuard_;
     Callback& callback_;
@@ -127,7 +127,7 @@ class Server : public std::enable_shared_from_this<Server<PlainSession, SslSessi
 public:
     Server(
         boost::asio::io_context& ioc,
-        std::optional<std::reference_wrapper<ssl::context>> ctx,
+        std::optional<std::reference_wrapper<boost::asio::ssl::context>> ctx,
         tcp::endpoint endpoint,
         util::TagDecoratorFactory tagFactory,
         clio::DOSGuard& dosGuard,
@@ -137,7 +137,7 @@ public:
         , tagFactory_(std::move(tagFactory))
         , dosGuard_(dosGuard)
         , callback_(callback)
-        , acceptor_(net::make_strand(ioc))
+        , acceptor_(boost::asio::make_strand(ioc))
     {
         boost::beast::error_code ec;
 
@@ -147,7 +147,7 @@ public:
             return;
 
         // Allow address reuse
-        acceptor_.set_option(net::socket_base::reuse_address(true), ec);
+        acceptor_.set_option(boost::asio::socket_base::reuse_address(true), ec);
         if (ec)
             return;
 
@@ -160,7 +160,7 @@ public:
         }
 
         // Start listening for connections
-        acceptor_.listen(net::socket_base::max_listen_connections, ec);
+        acceptor_.listen(boost::asio::socket_base::max_listen_connections, ec);
         if (ec)
         {
             log_.error() << "Failed to listen at endpoint: " << endpoint << ". message: " << ec.message();
@@ -181,7 +181,7 @@ private:
     {
         // The new connection gets its own strand
         acceptor_.async_accept(
-            net::make_strand(ioc_), boost::beast::bind_front_handler(&Server::onAccept, shared_from_this()));
+            boost::asio::make_strand(ioc_), boost::beast::bind_front_handler(&Server::onAccept, shared_from_this()));
     }
 
     void
@@ -189,7 +189,8 @@ private:
     {
         if (!ec)
         {
-            auto ctxRef = ctx_ ? std::optional<std::reference_wrapper<ssl::context>>{ctx_.value()} : std::nullopt;
+            auto ctxRef =
+                ctx_ ? std::optional<std::reference_wrapper<boost::asio::ssl::context>>{ctx_.value()} : std::nullopt;
             // Create the detector session and run it
             std::make_shared<Detector<PlainSession, SslSession, Callback>>(
                 ioc_, std::move(socket), ctxRef, tagFactory_, dosGuard_, callback_)
@@ -209,7 +210,7 @@ static std::shared_ptr<HttpServer<Executor>>
 make_HttpServer(
     clio::Config const& config,
     boost::asio::io_context& ioc,
-    std::optional<std::reference_wrapper<ssl::context>> sslCtx,
+    std::optional<std::reference_wrapper<boost::asio::ssl::context>> sslCtx,
     clio::DOSGuard& dosGuard,
     Executor& callback)
 {
@@ -233,4 +234,4 @@ make_HttpServer(
     return server;
 }
 
-}  // namespace ServerNG
+}  // namespace Server

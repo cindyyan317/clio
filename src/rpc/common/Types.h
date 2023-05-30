@@ -27,7 +27,7 @@
 #include <boost/asio/spawn.hpp>
 #include <boost/json/value.hpp>
 
-namespace ServerNG {
+namespace Server {
 struct ConnectionBase;
 }
 class SubscriptionManager;
@@ -70,7 +70,7 @@ struct Context
     // TODO: we shall change yield_context to const yield_context after we
     // update backend interfaces to use const& yield
     std::reference_wrapper<boost::asio::yield_context> yield;
-    std::shared_ptr<ServerNG::ConnectionBase> session;
+    std::shared_ptr<Server::ConnectionBase> session;
     bool isAdmin = false;
     std::string clientIp;
 };

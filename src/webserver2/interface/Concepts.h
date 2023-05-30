@@ -24,14 +24,14 @@
 #include <boost/beast.hpp>
 #include <boost/json.hpp>
 
-namespace ServerNG {
+namespace Server {
 
 // clang-format off
 template <typename T>
-concept ServerCallback = requires(T a, boost::json::object&& req, std::shared_ptr<ServerNG::ConnectionBase> ws, ServerNG::ConnectionBase& conn, boost::beast::error_code ec) {
+concept ServerCallback = requires(T a, boost::json::object&& req, std::shared_ptr<ConnectionBase> ws, ConnectionBase& conn, boost::beast::error_code ec) {
     {a(std::move(req),ws,conn)};
     {a(ec,ws)};
 };
 // clang-format on
 
-}  // namespace ServerNG
+}  // namespace Server

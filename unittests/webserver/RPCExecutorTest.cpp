@@ -29,7 +29,7 @@ using namespace std::chrono_literals;
 constexpr static auto MINSEQ = 10;
 constexpr static auto MAXSEQ = 30;
 
-struct MockWsBase : public ServerNG::ConnectionBase
+struct MockWsBase : public Server::ConnectionBase
 {
     std::string message;
 
@@ -45,7 +45,7 @@ struct MockWsBase : public ServerNG::ConnectionBase
         message += std::string(msg.data());
     }
 
-    MockWsBase(util::TagDecoratorFactory const& factory) : ServerNG::ConnectionBase(factory, "localhost.fake.ip")
+    MockWsBase(util::TagDecoratorFactory const& factory) : Server::ConnectionBase(factory, "localhost.fake.ip")
     {
     }
 };

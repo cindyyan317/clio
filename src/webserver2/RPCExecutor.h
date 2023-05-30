@@ -49,7 +49,7 @@ public:
     }
 
     void
-    operator()(boost::json::object&& req, std::shared_ptr<ServerNG::ConnectionBase> ws, ServerNG::ConnectionBase& conn)
+    operator()(boost::json::object&& req, std::shared_ptr<Server::ConnectionBase> ws, Server::ConnectionBase& conn)
     {
         if (!rpcEngine_->post(
                 [&, this](boost::asio::yield_context yc) { handleRequest(yc, std::move(req), ws, conn); },
@@ -61,7 +61,7 @@ public:
     }
 
     void
-    operator()(boost::beast::error_code ec, std::shared_ptr<ServerNG::ConnectionBase> ws)
+    operator()(boost::beast::error_code ec, std::shared_ptr<Server::ConnectionBase> ws)
     {
         // if (auto manager = subscriptions_.lock(); manager)
         //     manager->cleanup(derived().shared_from_this());
@@ -72,8 +72,8 @@ private:
     handleRequest(
         boost::asio::yield_context& yc,
         boost::json::object&& request,
-        std::shared_ptr<ServerNG::ConnectionBase> const& ws,
-        ServerNG::ConnectionBase& connection)
+        std::shared_ptr<Server::ConnectionBase> const& ws,
+        Server::ConnectionBase& connection)
     {
         connection.perfLog.debug() << connection.tag() << "Received request from work queue: " << request;
         connection.log.info() << connection.tag() << "Received request from work queue : " << request;
@@ -106,8 +106,9 @@ private:
                     boost::json::serialize(composeError(RPC::RippledError::rpcNOT_READY)),
                     boost::beast::http::status::ok);
 
-            auto context = ws ? RPC::make_WsContext(yc, request, ws, tagFactory_, *range, connection.clientIp)
-                              : RPC::make_HttpContext(yc, request, tagFactory_, *range, connection.clientIp);
+            auto context = ws
+                ? RPC::make_WsContext(yc, request, ws, tagFactory_.with(connection.tag()), *range, connection.clientIp)
+                : RPC::make_HttpContext(yc, request, tagFactory_.with(connection.tag()), *range, connection.clientIp);
             if (!context)
             {
                 connection.perfLog.warn() << connection.tag() << "Could not create RPC context";

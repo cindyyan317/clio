@@ -32,6 +32,8 @@
 #include <rpc/Counters.h>
 #include <rpc/RPCEngine.h>
 #include <rpc/common/impl/HandlerProvider.h>
+#include <webserver2/RPCExecutor.h>
+#include <webserver2/Server.h>
 
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/strand.hpp>
@@ -214,12 +216,16 @@ try
     auto const rpcEngine = RPC::RPCEngine::make_RPCEngine(
         config, backend, subscriptions, balancer, etl, dosGuard, workQueue, counters, handlerProvider);
 
-    // The server handles incoming RPCs
-    // auto ctx = parseCerts(config);
-    // auto ctxRef = ctx ? std::optional<std::reference_wrapper<boost::asio::ssl::context>>{ctx.value()} : std::nullopt;
-
-    // auto httpServer =
-    //    Server::make_HttpServer(config, ioc, ctxRef, backend, rpcEngine, subscriptions, balancer, etl, dosGuard);
+    // init the web server
+    //  tep1: prepare the tag decorator factory
+    auto tagFactoryForSession = util::TagDecoratorFactory(config);
+    // step2:  prepare the executor
+    auto executor = std::make_shared<RPCExecutor<RPC::RPCEngine, ReportingETL>>(
+        backend, rpcEngine, etl, subscriptions, tagFactoryForSession);
+    // step3: prepare the http server
+    auto ctx = parseCerts(config);
+    auto ctxRef = ctx ? std::optional<std::reference_wrapper<boost::asio::ssl::context>>{ctx.value()} : std::nullopt;
+    auto httpServer = Server::make_HttpServer(config, ioc, ctxRef, dosGuard, *executor);
 
     // Blocks until stopped.
     // When stopped, shared_ptrs fall out of scope

@@ -23,7 +23,7 @@
 #include <webserver2/SslWsSession.h>
 #include <webserver2/details/HttpBase.h>
 
-namespace ServerNG {
+namespace Server {
 
 using tcp = boost::asio::ip::tcp;
 
@@ -104,4 +104,4 @@ public:
             ->run();
     }
 };
-}  // namespace ServerNG
+}  // namespace Server

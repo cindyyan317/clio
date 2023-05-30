@@ -23,7 +23,7 @@
 #include <log/Logger.h>
 #include <util/Taggable.h>
 
-namespace ServerNG {
+namespace Server {
 
 namespace http = boost::beast::http;
 
@@ -73,4 +73,4 @@ public:
 
     virtual ~ConnectionBase() = default;
 };
-}  // namespace ServerNG
+}  // namespace Server

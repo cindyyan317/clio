@@ -32,7 +32,7 @@
 #include <iostream>
 #include <memory>
 
-namespace ServerNG {
+namespace Server {
 
 template <template <class> class Derived, ServerCallback Callback>
 class WsSession : public ConnectionBase, public std::enable_shared_from_this<WsSession<Derived, Callback>>
@@ -262,4 +262,4 @@ public:
         doRead();
     }
 };
-}  // namespace ServerNG
+}  // namespace Server

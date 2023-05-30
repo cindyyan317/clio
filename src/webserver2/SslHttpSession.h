@@ -21,7 +21,7 @@
 
 #include <webserver2/details/HttpBase.h>
 
-namespace ServerNG {
+namespace Server {
 
 using tcp = boost::asio::ip::tcp;
 
@@ -38,7 +38,7 @@ public:
         boost::asio::io_context& ioc,
         tcp::socket&& socket,
         std::string const& ip,
-        ssl::context& ctx,
+        boost::asio::ssl::context& ctx,
         util::TagDecoratorFactory const& tagFactory,
         clio::DOSGuard& dosGuard,
         Callback& callback,
@@ -81,7 +81,7 @@ public:
             // Perform the SSL handshake
             // Note, this is the buffered version of the handshake.
             self->stream_.async_handshake(
-                ssl::stream_base::server,
+                boost::asio::ssl::stream_base::server,
                 self->buffer_.data(),
                 boost::beast::bind_front_handler(&SslHttpSession<Callback>::onHandshake, self));
         });
@@ -130,4 +130,4 @@ public:
             ->run();
     }
 };
-}  // namespace ServerNG
+}  // namespace Server

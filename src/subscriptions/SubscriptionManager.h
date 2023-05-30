@@ -26,7 +26,7 @@
 
 #include <memory>
 
-using SessionPtrType = std::shared_ptr<ServerNG::ConnectionBase>;
+using SessionPtrType = std::shared_ptr<Server::ConnectionBase>;
 
 class Subscription
 {

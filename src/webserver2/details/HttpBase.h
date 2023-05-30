@@ -35,7 +35,7 @@
 #include <memory>
 #include <string>
 
-namespace ServerNG {
+namespace Server {
 
 // using namespace boost::beast::http;
 using tcp = boost::asio::ip::tcp;
@@ -293,4 +293,4 @@ public:
     }
 };
 
-}  // namespace ServerNG
+}  // namespace Server
