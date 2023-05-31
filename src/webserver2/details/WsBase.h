@@ -44,7 +44,6 @@ class WsSession : public ConnectionBase, public std::enable_shared_from_this<WsS
     boost::asio::io_context& ioc_;
     util::TagDecoratorFactory const& tagFactory_;
     clio::DOSGuard& dosGuard_;
-    std::mutex mtx_;
 
     bool sending_ = false;
     std::queue<std::shared_ptr<std::string>> messages_;
@@ -191,7 +190,6 @@ public:
         if (dead())
             return;
 
-        std::lock_guard<std::mutex> lck{mtx_};
         // Clear the buffer
         buffer_.consume(buffer_.size());
         // Read a message into our buffer

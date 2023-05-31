@@ -218,14 +218,15 @@ try
 
     // init the web server
     //  tep1: prepare the tag decorator factory
-    auto tagFactoryForSession = util::TagDecoratorFactory(config);
+    auto const tagFactoryForSession = util::TagDecoratorFactory(config);
     // step2:  prepare the executor
     auto executor = std::make_shared<RPCExecutor<RPC::RPCEngine, ReportingETL>>(
         backend, rpcEngine, etl, subscriptions, tagFactoryForSession);
     // step3: prepare the http server
     auto ctx = parseCerts(config);
-    auto ctxRef = ctx ? std::optional<std::reference_wrapper<boost::asio::ssl::context>>{ctx.value()} : std::nullopt;
-    auto httpServer = Server::make_HttpServer(config, ioc, ctxRef, dosGuard, *executor);
+    auto const ctxRef =
+        ctx ? std::optional<std::reference_wrapper<boost::asio::ssl::context>>{ctx.value()} : std::nullopt;
+    auto const httpServer = Server::make_HttpServer(config, ioc, ctxRef, dosGuard, *executor);
 
     // Blocks until stopped.
     // When stopped, shared_ptrs fall out of scope

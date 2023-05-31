@@ -76,7 +76,6 @@ private:
         std::shared_ptr<Server::ConnectionBase> ws)
     {
         ws->perfLog.debug() << ws->tag() << "Received request from work queue: " << request;
-        ws->log.info() << ws->tag() << "Received request from work queue : " << request;
 
         auto const id = request.contains("id") ? request.at("id") : nullptr;
 
@@ -109,22 +108,24 @@ private:
             if (!context)
             {
                 ws->perfLog.warn() << ws->tag() << "Could not create RPC context";
+                ws->log.warn() << ws->tag() << "Could not create RPC context";
                 return ws->send(
                     boost::json::serialize(composeError(RPC::RippledError::rpcBAD_SYNTAX)),
                     boost::beast::http::status::ok);
             }
 
-            boost::json::object response;
             auto [v, timeDiff] = util::timed([&]() { return rpcEngine_->buildResponse(*context); });
 
             auto us = std::chrono::duration<int, std::milli>(timeDiff);
             RPC::logDuration(*context, us);
 
+            boost::json::object response;
             if (auto const status = std::get_if<RPC::Status>(&v))
             {
                 rpcEngine_->notifyErrored(context->method);
                 response = std::move(composeError(*status));
                 ws->perfLog.debug() << ws->tag() << "Encountered error: " << boost::json::serialize(response);
+                ws->log.debug() << ws->tag() << "Encountered error: " << boost::json::serialize(response);
             }
             else
             {
@@ -137,9 +138,8 @@ private:
                     result.at("forwarded").as_bool();
 
                 // if the result is forwarded - just use it as is
-                // the response has "result" inside
-                // but keep all default fields in the response too.
-                if (isForwarded)
+                // if forwarded request has error, for http, error should be in "result"; for ws, error should be in top
+                if (isForwarded && (result.contains("result") || ws->upgraded))
                 {
                     for (auto const& [k, v] : result)
                         response.insert_or_assign(k, v);
@@ -178,6 +178,7 @@ private:
         catch (std::exception const& e)
         {
             ws->perfLog.error() << ws->tag() << "Caught exception : " << e.what();
+            ws->log.error() << ws->tag() << "Caught exception : " << e.what();
             return ws->send(
                 boost::json::serialize(composeError(RPC::RippledError::rpcINTERNAL)),
                 boost::beast::http::status::internal_server_error);
