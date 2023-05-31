@@ -43,14 +43,14 @@ public:
     }
 
     /**
-     * @brief Send, that enables SubscriptionManager to publish to clients
+     * @brief Send the response to the client
      * @param msg The message to send
      */
     virtual void
     send(std::string&& msg, http::status status = http::status::ok) = 0;
 
     /**
-     * @brief Send, that enables SubscriptionManager to publish to clients
+     * @brief Send via shared_ptr of string, that enables SubscriptionManager to publish to clients
      * @param msg The message to send
      */
     virtual void

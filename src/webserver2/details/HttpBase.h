@@ -37,7 +37,6 @@
 
 namespace Server {
 
-// using namespace boost::beast::http;
 using tcp = boost::asio::ip::tcp;
 
 template <template <class> class Derived, ServerCallback Callback>

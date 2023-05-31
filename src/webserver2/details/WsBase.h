@@ -79,12 +79,12 @@ public:
         , callback_(callback)
     {
         upgraded = true;
-        perfLog.info() << tag() << "session created";
+        perfLog.debug() << tag() << "session created";
     }
 
     virtual ~WsSession()
     {
-        perfLog.info() << tag() << "session closed";
+        perfLog.debug() << tag() << "session closed";
         dosGuard_.decrement(clientIp);
     }
 
