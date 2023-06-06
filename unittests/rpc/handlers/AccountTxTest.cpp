@@ -108,7 +108,7 @@ generateTestValuesForParametersTest()
             "Invalid parameters."},
         AccountTxParamTestCaseBundle{
             "limitOverRange",
-            R"({"account":"rf1BiGeXwwQoi8Z2ueFYTEXSwuJYfV2Jpn", "limit": 101})",
+            R"({"account":"rf1BiGeXwwQoi8Z2ueFYTEXSwuJYfV2Jpn", "limit": 201})",
             "invalidParams",
             "Invalid parameters."},
         AccountTxParamTestCaseBundle{
