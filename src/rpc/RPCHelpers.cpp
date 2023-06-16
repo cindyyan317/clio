@@ -36,14 +36,15 @@ clio::Logger gLog{"RPC"};
 
 namespace RPC {
 
+// account cursor will be dirIndex, entryIndex, for nft pages, the dirIndex is zero
 std::optional<AccountCursor>
 parseAccountCursor(std::optional<std::string> jsonCursor)
 {
-    ripple::uint256 cursorIndex = beast::zero;
-    std::uint64_t startHint = 0;
+    ripple::uint256 dirIndex = beast::zero;
+    ripple::uint256 entryIndex = beast::zero;
 
     if (!jsonCursor)
-        return AccountCursor({cursorIndex, startHint});
+        return AccountCursor({dirIndex, entryIndex});
 
     // Cursor is composed of a comma separated index and start hint. The
     // former will be read as hex, and the latter using boost lexical cast.
@@ -52,22 +53,16 @@ parseAccountCursor(std::optional<std::string> jsonCursor)
     if (!std::getline(cursor, value, ','))
         return {};
 
-    if (!cursorIndex.parseHex(value))
+    if (!dirIndex.parseHex(value))
         return {};
 
     if (!std::getline(cursor, value, ','))
         return {};
 
-    try
-    {
-        startHint = boost::lexical_cast<std::uint64_t>(value);
-    }
-    catch (boost::bad_lexical_cast&)
-    {
+    if (!entryIndex.parseHex(value))
         return {};
-    }
 
-    return AccountCursor({cursorIndex, startHint});
+    return AccountCursor({dirIndex, entryIndex});
 }
 
 std::optional<ripple::STAmount>
@@ -422,13 +417,13 @@ traverseOwnedNodes(
     if (!maybeCursor)
         return Status(ripple::rpcINVALID_PARAMS, "Malformed cursor");
 
-    auto [hexCursor, startHint] = *maybeCursor;
+    auto [dirIndex, entryIndex] = *maybeCursor;
 
     return traverseOwnedNodes(
         backend,
         ripple::keylet::ownerDir(accountID),
-        hexCursor,
-        startHint,
+        dirIndex,
+        entryIndex,
         sequence,
         limit,
         jsonCursor,
@@ -478,8 +473,8 @@ std::variant<Status, AccountCursor>
 traverseOwnedNodes(
     BackendInterface const& backend,
     ripple::Keylet const& owner,
-    ripple::uint256 const& hexMarker,
-    std::uint32_t const startHint,
+    ripple::uint256 const& dirIndex,
+    ripple::uint256 const entryIndex,
     std::uint32_t sequence,
     std::uint32_t limit,
     std::optional<std::string> jsonCursor,

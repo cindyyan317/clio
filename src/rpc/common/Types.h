@@ -79,19 +79,19 @@ using Result = std::variant<Status, boost::json::object>;
 
 struct AccountCursor
 {
-    ripple::uint256 index;
-    std::uint32_t hint;
+    ripple::uint256 dirIndex;
+    ripple::uint256 entryIndex;
 
     std::string
     toString() const
     {
-        return ripple::strHex(index) + "," + std::to_string(hint);
+        return ripple::strHex(dirIndex) + "," + std::to_string(entryIndex);
     }
 
     bool
     isNonZero() const
     {
-        return index.isNonZero() || hint != 0;
+        return dirIndex.isNonZero() || entryIndex.isNonZero();
     }
 };
 
