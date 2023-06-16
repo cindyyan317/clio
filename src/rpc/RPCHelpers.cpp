@@ -437,18 +437,30 @@ traverseOwnedNodes(
 }
 
 std::variant<Status, AccountCursor>
-ngTraverseOwnedNodes(
+traverseNFTPages(
+    BackendInterface const& backend,
+    std::uint32_t limit,
+    ripple::uint256 dirIndex,
+    ripple::unit256 entryIndex,
+    std::function<void(ripple::SLE&&)> atOwnedNode){auto const [dirIndex, entryIndex] = }
+
+std::variant<Status, AccountCursor> ngTraverseOwnedNodes(
     BackendInterface const& backend,
     ripple::AccountID const& accountID,
     std::uint32_t sequence,
     std::uint32_t limit,
     std::optional<std::string> jsonCursor,
     boost::asio::yield_context& yield,
-    std::function<void(ripple::SLE&&)> atOwnedNode)
+    std::function<void(ripple::SLE&&)> atOwnedNode,
+    bool includeNFTPages = false)
 {
     auto const maybeCursor = parseAccountCursor(jsonCursor);
     // the format is checked in RPC framework level
     auto const [hexCursor, startHint] = *maybeCursor;
+    // traverse nft pages first
+    if (includeNFTPages)
+    {
+    }
 
     return traverseOwnedNodes(
         backend,
