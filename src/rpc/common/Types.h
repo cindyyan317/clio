@@ -79,13 +79,15 @@ using Result = std::variant<Status, boost::json::object>;
 
 struct AccountCursor
 {
+    // the dir entry index
     ripple::uint256 dirIndex;
+    // the last one entry we return from the dir
     ripple::uint256 entryIndex;
 
     std::string
     toString() const
     {
-        return ripple::strHex(dirIndex) + "," + std::to_string(entryIndex);
+        return ripple::strHex(dirIndex) + "," + ripple::strHex(entryIndex);
     }
 
     bool

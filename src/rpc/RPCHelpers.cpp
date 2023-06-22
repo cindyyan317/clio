@@ -38,17 +38,17 @@ namespace RPC {
 
 // account cursor will be dirIndex, entryIndex, for nft pages, the dirIndex is zero
 std::optional<AccountCursor>
-parseAccountCursor(std::optional<std::string> jsonCursor)
+parseAccountCursor(std::optional<std::string> strCursor)
 {
     ripple::uint256 dirIndex = beast::zero;
     ripple::uint256 entryIndex = beast::zero;
 
-    if (!jsonCursor)
+    if (!strCursor)
         return AccountCursor({dirIndex, entryIndex});
 
     // Cursor is composed of a comma separated index and start hint. The
     // former will be read as hex, and the latter using boost lexical cast.
-    std::stringstream cursor(*jsonCursor);
+    std::stringstream cursor(*strCursor);
     std::string value;
     if (!std::getline(cursor, value, ','))
         return {};
@@ -406,29 +406,21 @@ traverseOwnedNodes(
     ripple::AccountID const& accountID,
     std::uint32_t sequence,
     std::uint32_t limit,
-    std::optional<std::string> jsonCursor,
+    std::optional<std::string> srcCursor,
     boost::asio::yield_context& yield,
     std::function<void(ripple::SLE&&)> atOwnedNode)
 {
     if (!backend.fetchLedgerObject(ripple::keylet::account(accountID).key, sequence, yield))
         return Status{RippledError::rpcACT_NOT_FOUND};
 
-    auto const maybeCursor = parseAccountCursor(jsonCursor);
+    auto const maybeCursor = parseAccountCursor(srcCursor);
     if (!maybeCursor)
         return Status(ripple::rpcINVALID_PARAMS, "Malformed cursor");
 
     auto [dirIndex, entryIndex] = *maybeCursor;
 
     return traverseOwnedNodes(
-        backend,
-        ripple::keylet::ownerDir(accountID),
-        dirIndex,
-        entryIndex,
-        sequence,
-        limit,
-        jsonCursor,
-        yield,
-        atOwnedNode);
+        backend, ripple::keylet::ownerDir(accountID), dirIndex, entryIndex, sequence, limit, yield, atOwnedNode);
 }
 
 std::variant<Status, AccountCursor>
@@ -436,10 +428,14 @@ traverseNFTPages(
     BackendInterface const& backend,
     std::uint32_t limit,
     ripple::uint256 dirIndex,
-    ripple::unit256 entryIndex,
-    std::function<void(ripple::SLE&&)> atOwnedNode){auto const [dirIndex, entryIndex] = }
+    ripple::uint256 entryIndex,
+    std::function<void(ripple::SLE&&)> atOwnedNode)
+{
+    return Status(ripple::rpcINVALID_PARAMS, "Malformed cursor");
+}
 
-std::variant<Status, AccountCursor> ngTraverseOwnedNodes(
+std::variant<Status, AccountCursor>
+ngTraverseOwnedNodes(
     BackendInterface const& backend,
     ripple::AccountID const& accountID,
     std::uint32_t sequence,
@@ -474,10 +470,9 @@ traverseOwnedNodes(
     BackendInterface const& backend,
     ripple::Keylet const& owner,
     ripple::uint256 const& dirIndex,
-    ripple::uint256 const entryIndex,
+    ripple::uint256 const& entryIndex,
     std::uint32_t sequence,
     std::uint32_t limit,
-    std::optional<std::string> jsonCursor,
     boost::asio::yield_context& yield,
     std::function<void(ripple::SLE&&)> atOwnedNode)
 {

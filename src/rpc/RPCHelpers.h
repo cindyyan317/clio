@@ -106,7 +106,7 @@ traverseOwnedNodes(
     ripple::AccountID const& accountID,
     std::uint32_t sequence,
     std::uint32_t limit,
-    std::optional<std::string> jsonCursor,
+    std::optional<std::string> strCursor,
     boost::asio::yield_context& yield,
     std::function<void(ripple::SLE&&)> atOwnedNode);
 
@@ -114,11 +114,10 @@ std::variant<Status, AccountCursor>
 traverseOwnedNodes(
     BackendInterface const& backend,
     ripple::Keylet const& owner,
-    ripple::uint256 const& hexMarker,
-    std::uint32_t const startHint,
+    ripple::uint256 const& dirIndex,
+    ripple::uint256 const& hexIndex,
     std::uint32_t sequence,
     std::uint32_t limit,
-    std::optional<std::string> jsonCursor,
     boost::asio::yield_context& yield,
     std::function<void(ripple::SLE&&)> atOwnedNode);
 
