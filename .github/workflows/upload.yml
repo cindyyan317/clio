@@ -11,6 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
+          repository: cindyyan317/clio
+          ref: conan-build-upload
           path: clio
       - name: install deps
         run: |
