@@ -1,0 +1,36 @@
+name: Upload to Artifactory
+on:
+  push:
+    branches: [conan-build-upload]
+  workflow_dispatch:
+jobs:
+  code_coverage:
+    name: Build on Linux and code coverage
+    continue-on-error: false
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          path: clio
+      - name: install deps
+        run: |
+          sudo apt-get -y install git pkg-config protobuf-compiler libprotobuf-dev libssl-dev wget build-essential doxygen bison flex autoconf clang-format gcovr
+          sudo pip install conan==1.57.0
+      - name: Setup conan artifactory
+        run: |
+          conan -v
+          conan remote add conan-non-prod http://18.143.149.228:8081/artifactory/api/conan/conan-non-prod
+      - name: Build clio
+        run: |
+          cd clio
+          mkdir -p build
+          cd build
+          conan install .. -of . --build boost -b missing -s build_type=Release -o clio:tests=True
+
+      - name: Upload
+        env:
+          SECRET: ${{ secrets.CONAN_ARTIFACTORY_KEY }}
+        run: |
+          conan -v
+          conan user -p $SECRET -r conan-non-prod jfrog-clio
+          conan upload --remote conan-non-prod '*' --all --parallel --confirm
