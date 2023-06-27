@@ -38,4 +38,5 @@ jobs:
         run: |
           conan -v
           conan user -p $SECRET -r conan-non-prod jfrog-clio
-          conan upload --remote conan-non-prod '*' --all --parallel --confirm
+          conan upload --all clio-xrpl -r=conan-non-prod -c
+          conan upload --all cassandra-driver -r=conan-non-prod -c
