@@ -6,7 +6,7 @@ on:
 jobs:
   code_coverage:
     name: Build on Linux and code coverage
-    continue-on-error: false
+    continue-on-error: true
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
@@ -38,5 +38,6 @@ jobs:
         run: |
           conan -v
           conan user -p $SECRET -r conan-non-prod jfrog-clio
-          echo "start download"
-          conan upload --all '*' -r=conan-non-prod -c
+          conan upload --all grpc -r=conan-non-prod -c
+          conan upload --all fmt -r=conan-non-prod -c
+          conan upload --all rocksdb -r=conan-non-prod -c
