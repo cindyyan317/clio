@@ -39,5 +39,4 @@ jobs:
           conan -v
           conan user -p $SECRET -r conan-non-prod jfrog-clio
           echo "start download"
-          conan upload --all clio-xrpl -r=conan-non-prod -c
-          conan upload --all cassandra-driver -r=conan-non-prod -c
+          conan upload --all '*' -r=conan-non-prod -c
