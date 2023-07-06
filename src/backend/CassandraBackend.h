@@ -811,6 +811,41 @@ public:
         return executor_.isTooBusy();
     }
 
+    std::set<ripple::uint256>
+    doFetchAllIndex(boost::asio::yield_context& yield) const override
+    {
+        std::set<ripple::uint256> keys;
+        int64_t startToken = std::numeric_limits<int64_t>::min();
+
+        while (true)
+        {
+            Statement statement = schema_->selectAllIndexes.bind(startToken);
+            auto const res = executor_.read(yield, statement);
+            if (not res)
+            {
+                log_.error() << "doFetchAllIndex - error getting result - no row";
+                return keys;
+            }
+
+            auto const& results = res.value();
+            if (not results.hasRows())
+            {
+                log_.debug() << "No rows returned";
+                return keys;
+            }
+
+            auto numRows = results.numRows();
+
+            for (auto [index, newToken] : extract<ripple::uint256, int64_t>(results))
+            {
+                keys.insert(index);
+                startToken = newToken;
+            }
+            startToken++;
+        }
+        return keys;
+    }
+
 private:
     bool
     executeSyncUpdate(Statement statement)

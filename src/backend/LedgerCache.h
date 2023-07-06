@@ -56,10 +56,33 @@ class LedgerCache
     // temporary set to prevent background thread from writing already deleted data. not used when cache is full
     std::unordered_set<ripple::uint256, ripple::hardened_hash<>> deletes_;
 
+    std::set<ripple::uint256> indexesCache_;
+
 public:
     // Update the cache with new ledger objects set isBackground to true when writing old data from a background thread
     void
     update(std::vector<LedgerObject> const& blobs, uint32_t seq, bool isBackground = false);
+
+    void
+    updateIndexes(std::set<ripple::uint256>&& indexes)
+    {
+        indexesCache_ = std::move(indexes);
+    }
+
+    bool
+    isIndexesCacheReady()
+    {
+        return !indexesCache_.empty();
+    }
+
+    std::optional<ripple::uint256>
+    getSuccessorIndex(ripple::uint256 const& key) const
+    {
+        auto it = indexesCache_.upper_bound(key);
+        if (it != indexesCache_.end())
+            return *it;
+        return {};
+    }
 
     std::optional<Blob>
     get(ripple::uint256 const& key, uint32_t seq) const;

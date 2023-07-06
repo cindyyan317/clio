@@ -461,6 +461,9 @@ public:
         return synchronous([&](boost::asio::yield_context yield) { return hardFetchLedgerRange(yield); });
     }
 
+    virtual std::set<ripple::uint256>
+    doFetchAllIndex(boost::asio::yield_context& yield) const = 0;
+
     /*! @brief Virtual function equivalent of hardFetchLedgerRange. */
     virtual std::optional<LedgerRange>
     hardFetchLedgerRange(boost::asio::yield_context& yield) const = 0;

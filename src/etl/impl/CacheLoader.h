@@ -340,6 +340,11 @@ private:
         std::vector<Backend::LedgerObject> diff;
         std::vector<std::optional<ripple::uint256>> cursors;
 
+        boost::asio::spawn(ioContext_.get(), [this](boost::asio::yield_context yield) {
+            std::cout << "xinmeng 1" << std::endl;
+            cache_.updateIndexes(backend_->doFetchAllIndex(yield));
+        });
+
         auto append = [](auto&& a, auto&& b) { a.insert(std::end(a), std::begin(b), std::end(b)); };
 
         for (size_t i = 0; i < numCacheDiffs_; ++i)

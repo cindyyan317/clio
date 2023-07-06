@@ -123,7 +123,7 @@ struct MockBackend : public BackendInterface
         (const, override));
 
     MOCK_METHOD(std::optional<LedgerRange>, hardFetchLedgerRange, (boost::asio::yield_context&), (const, override));
-
+    MOCK_METHOD(std::set<ripple::uint256>, doFetchAllIndex, (boost::asio::yield_context&), (const, override));
     MOCK_METHOD(void, writeLedger, (ripple::LedgerInfo const&, std::string&&), (override));
 
     MOCK_METHOD(void, writeLedgerObject, (std::string&&, std::uint32_t const, std::string&&), (override));

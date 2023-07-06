@@ -638,6 +638,18 @@ public:
                 )",
                 qualifiedTableName(settingsProvider_.get(), "ledger_range")));
         }();
+
+        PreparedStatement selectAllIndexes = [this]() {
+            return handle_.get().prepare(fmt::format(
+                R"(
+                SELECT key, token(key)
+                FROM {}
+                WHERE token(key) >= ?
+                GROUP BY key
+                LIMIT 10000
+                )",
+                qualifiedTableName(settingsProvider_.get(), "successor")));
+        }();
     };
 
     /**
