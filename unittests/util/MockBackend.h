@@ -149,4 +149,10 @@ struct MockBackend : public BackendInterface
     MOCK_METHOD(void, doWriteLedgerObject, (std::string&&, std::uint32_t const, std::string&&), (override));
 
     MOCK_METHOD(bool, doFinishWrites, (), (override));
+
+    MOCK_METHOD(
+        std::pair<long, std::vector<Blob>>,
+        scanObjectsFromCursor,
+        (int64_t, int, boost::asio::yield_context),
+        (const, override));
 };

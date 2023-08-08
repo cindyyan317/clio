@@ -429,6 +429,32 @@ private:
             }
         }};
     }
-};
 
+    void
+    loadCacheFromDb2(uint32_t seq)
+    {
+        int64_t minToken = std::numeric_limits<int64_t>::min();
+        long maxToken = 9223372036854775807L;
+        auto const concurrency = 32;
+        auto const step = maxToken / (concurrency / 2);
+        auto const limit = 500;
+        thread_ = std::thread{[this, seq, minToken, concurrency, step, limit]() {
+            for (size_t i = 0; i < concurrency; ++i)
+            {
+                auto start = minToken + i * step;
+                auto const end = minToken + (i + 1) * step;
+                boost::asio::spawn(ioContext_.get(), [this, seq, start, end](boost::asio::yield_context yield) mutable {
+                    while (not stopping_)
+                    {
+                        auto [cursor, objects] = backend_->BackendInterface::scanObjectsFromCursor(start, limit, yield);
+                        if (start >= end or objects.size() == 0)
+                            break;
+                        start = cursor;
+                        cache_.get().update(objects, seq, true);
+                    }
+                });
+            }
+        }};
+    }
+};
 }  // namespace clio::detail

@@ -332,6 +332,29 @@ public:
         return fetchTransactions(hashes, yield);
     }
 
+    std::pair<long, std::vector<Blob>>
+    scanObjectsFromCursor(int64_t cursor, int limit, boost::asio::yield_context yield) const override
+    {
+        auto const res = executor_.read(yield, schema_->scanObjects, cursor, limit);
+
+        if (not res)
+        {
+            log_.error() << "Could not fetch objects: " << res.error();
+            return {};
+        }
+
+        auto const& result = res.value();
+
+        std::vector<Blob> objects;
+        long tokenId = 0;
+        for (auto [token, object] : extract<std::pair<long, Blob>>(result))
+        {
+            objects.push_back(std::move(object));
+            tokenId = token;
+        }
+        return std::make_pair(tokenId, objects);
+    }
+
     std::vector<ripple::uint256>
     fetchAllTransactionHashesInLedger(std::uint32_t const ledgerSequence, boost::asio::yield_context yield)
         const override

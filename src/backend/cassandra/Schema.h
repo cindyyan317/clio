@@ -522,6 +522,17 @@ public:
                 qualifiedTableName(settingsProvider_.get(), "objects")));
         }();
 
+        PreparedStatement scanObjects = [this]() {
+            return handle_.get().prepare(fmt::format(
+                R"(
+                SELECT TOKEN(key), object
+                  FROM {}               
+                 WHERE TOKEN(key) >= ?               
+                 LIMIT ?
+                )",
+                qualifiedTableName(settingsProvider_.get(), "objects")));
+        }();
+
         PreparedStatement selectAccountTx = [this]() {
             return handle_.get().prepare(fmt::format(
                 R"(

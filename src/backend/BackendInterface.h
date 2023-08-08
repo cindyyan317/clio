@@ -242,6 +242,9 @@ public:
     virtual std::vector<TransactionAndMetadata>
     fetchTransactions(std::vector<ripple::uint256> const& hashes, boost::asio::yield_context yield) const = 0;
 
+    virtual std::pair<long, std::vector<Blob>>
+    scanObjectsFromCursor(int64_t cursor, int limit, boost::asio::yield_context yield) const = 0;
+
     /**
      * @brief Fetches all transactions for a specific account
      *
