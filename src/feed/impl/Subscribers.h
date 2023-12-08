@@ -26,12 +26,13 @@
 #include <unordered_map>
 #include <unordered_set>
 
+namespace feed::impl {
 template <typename Slot, typename Topic = void>
 class Subscribers {
     using SlotPtr = std::shared_ptr<Slot>;
-    using SlotFunc = decltype(Slot::operator());
-    std::unordered_map<Topic, boost::signals2::signal<SlotFunc>> subscribersSignalMap_;
+    std::unordered_map<Topic, boost::signals2::signal<typename Slot::FuncType>> subscribersSignalMap_;
     std::unordered_map<SlotPtr, std::unordered_set<Topic>> subscribersTopicMap_;
+    std::uint64_t count_ = 0;
 
 public:
     Subscribers() = default;
@@ -46,6 +47,8 @@ public:
 
         subscribersSignalMap_[topic].connect(*slot);
         subscribersTopicMap_[slot].insert(topic);
+        count_++;
+        slot->onDisconnect([this, slot, topic]() { unsub(slot, topic); });
     }
 
     void
@@ -57,12 +60,13 @@ public:
 
         subscribersSignalMap_[topic].disconnect(*slot);
         subscribersTopicMap_[slot].erase(topic);
+        count_--;
     }
 
     std::uint64_t
-    count()
+    count() const
     {
-        return 0;
+        return count_;
     }
 
     void
@@ -75,8 +79,10 @@ public:
 
 template <typename Slot>
 class Subscribers<Slot, void> {
+protected:
     using SlotPtr = std::shared_ptr<Slot>;
 
+private:
     boost::signals2::signal<typename Slot::FuncType> subscribersSignal_;
     std::unordered_set<SlotPtr> subscribers_;
 
@@ -93,6 +99,7 @@ public:
 
         subscribersSignal_.connect(*slot);
         subscribers_.insert(slot);
+        slot->onDisconnect([this, slot]() { unsub(slot); });
     }
 
     void
@@ -107,7 +114,7 @@ public:
     }
 
     std::uint64_t
-    count()
+    count() const
     {
         return subscribers_.size();
     }
@@ -118,3 +125,4 @@ public:
         subscribersSignal_(msg);
     }
 };
+}  // namespace feed::impl

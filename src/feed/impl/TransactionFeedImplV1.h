@@ -19,44 +19,19 @@
 
 #pragma once
 
-#include "web/interface/ConnectionBase.h"
+#include "data/Types.h"
+#include "feed/impl/TransactionFeedBase.h"
 
-#include <functional>
-#include <memory>
-#include <string>
+#include <ripple/protocol/AccountID.h>
+#include <ripple/protocol/Book.h>
+#include <ripple/protocol/LedgerHeader.h>
 
-class WsSessionSlot {
-    std::reference_wrapper<std::shared_ptr<web::ConnectionBase>> wsConnection_;
+namespace feed::impl {
 
-public:
-    using FuncType = void(std::shared_ptr<std::string> const&);
-
-    WsSessionSlot(std::shared_ptr<web::ConnectionBase>& wsConnection) : wsConnection_(wsConnection)
-    {
-    }
-    ~WsSessionSlot() = default;
-
-    std::shared_ptr<web::ConnectionBase>
-    getWsConnection() const
-    {
-        return wsConnection_;
-    }
-
+class TransactionFeedImplV1 : public TransactionFeedBase {
     void
-    operator()(std::shared_ptr<std::string> const& msg)
+    publish(data::TransactionAndMetadata const&, ripple::LedgerHeader const&) override
     {
-        wsConnection_.get()->send(msg);
-    }
-
-    bool
-    operator==(WsSessionSlot const& other) const
-    {
-        return wsConnection_.get() == other.wsConnection_.get();
-    }
-
-    void
-    onDisconnect(web::ConnectionBase::OnDisconnectSlot const& onDisconnect)
-    {
-        wsConnection_.get()->onDisconnect.connect(onDisconnect);
     }
 };
+}  // namespace feed::impl

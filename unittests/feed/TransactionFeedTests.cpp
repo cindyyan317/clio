@@ -17,9 +17,10 @@
 */
 //==============================================================================
 
-#include "feed/impl/ForwardFeed.h"
+#include "feed/impl/TransactionFeedImplV1.h"
 #include "util/MockWsBase.h"
 #include "util/Taggable.h"
+#include "util/TestObject.h"
 #include "util/config/Config.h"
 
 #include <gtest/gtest.h>
@@ -28,9 +29,9 @@
 
 using namespace feed::impl;
 
-TEST(SubForwardFeed, TEST)
+TEST(SubTransactionFeed, TEST)
 {
-    ForwardFeed forwardFeed;
+    TransactionFeedImplV1 txFeedV1;
     util::Config cfg;
     util::TagDecoratorFactory tagDecoratorFactory{cfg};
     {
@@ -38,26 +39,14 @@ TEST(SubForwardFeed, TEST)
 
         auto slot = std::make_shared<WsSessionSlot>(wsConnection);
 
-        forwardFeed.sub(slot);
+        txFeedV1.sub(slot);
+        txFeedV1.sub(slot, GetAccountIDWithString("rf1BiGeXwwQoi8Z2ueFYTEXSwuJYfV2Jpn"));
+        txFeedV1.sub(slot, GetAccountIDWithString("rf1BiGeXwwQoi8Z2ueFYTEXSwuJYfV2Jpn"));
+        txFeedV1.sub(slot, GetAccountIDWithString("rLEsXccBGNR3UPuPu2hUXPjziKC3qKSBun"));
 
-        EXPECT_EQ(forwardFeed.count(), 1);
-
-        forwardFeed.sub(slot);
-
-        EXPECT_EQ(forwardFeed.count(), 1);
-
-        forwardFeed.publish("test");
-        forwardFeed.publish("123");
-
-        MockSession* session = dynamic_cast<MockSession*>(wsConnection.get());
-        EXPECT_EQ(session->message, "test123");
-
-        std::shared_ptr<web::ConnectionBase> wsConnection2 = std::make_shared<MockSession>(tagDecoratorFactory);
-        auto slot2 = std::make_shared<WsSessionSlot>(wsConnection2);
-
-        forwardFeed.sub(slot2);
-        EXPECT_EQ(forwardFeed.count(), 2);
+        EXPECT_EQ(txFeedV1.transactionsStreamCount(), 1);
+        EXPECT_EQ(txFeedV1.accountStreamCount(), 2);
     }
-
-    EXPECT_EQ(forwardFeed.count(), 0);
+    EXPECT_EQ(txFeedV1.transactionsStreamCount(), 0);
+    EXPECT_EQ(txFeedV1.accountStreamCount(), 0);
 }

@@ -19,12 +19,13 @@
 
 #pragma once
 
-#include "feed/Subscribers.h"
-#include "feed/WsSessionSlot.h"
+#include "feed/impl/Subscribers.h"
+#include "feed/impl/WsSessionSlot.h"
 
 #include <memory>
 #include <string>
 
+namespace feed::impl {
 class ForwardFeed : public Subscribers<WsSessionSlot> {
 public:
     ForwardFeed() = default;
@@ -35,11 +36,5 @@ public:
         auto const msgSharedPtr = std::make_shared<std::string>(msg);
         Subscribers<WsSessionSlot>::publish(msgSharedPtr);
     }
-
-    void
-    sub(std::shared_ptr<WsSessionSlot>& slot)
-    {
-        Subscribers<WsSessionSlot>::sub(slot);
-        slot->onDisconnect([this, slot]() { this->unsub(slot); });
-    }
 };
+}  // namespace feed::impl

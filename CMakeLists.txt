@@ -255,6 +255,7 @@ if (tests)
     unittests/web/WhitelistHandlerTests.cpp
     unittests/web/SweepHandlerTests.cpp
     # Feed
+    unittests/feed/TransactionFeedTests.cpp
     unittests/feed/ForwardFeedTests.cpp)
 
   include (CMake/deps/gtest.cmake)
