@@ -25,14 +25,16 @@
 #include <memory>
 #include <string>
 
-class SubscriberSlot {
+class WsSessionSlot {
     std::reference_wrapper<std::shared_ptr<web::ConnectionBase>> wsConnection_;
 
 public:
-    SubscriberSlot(std::shared_ptr<web::ConnectionBase>& wsConnection) : wsConnection_(wsConnection)
+    using FuncType = void(std::shared_ptr<std::string> const&);
+
+    WsSessionSlot(std::shared_ptr<web::ConnectionBase>& wsConnection) : wsConnection_(wsConnection)
     {
     }
-    ~SubscriberSlot() = default;
+    ~WsSessionSlot() = default;
 
     std::shared_ptr<web::ConnectionBase>
     getWsConnection() const
@@ -47,7 +49,7 @@ public:
     }
 
     bool
-    operator==(SubscriberSlot const& other) const
+    operator==(WsSessionSlot const& other) const
     {
         return wsConnection_.get() == other.wsConnection_.get();
     }

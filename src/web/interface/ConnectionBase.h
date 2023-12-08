@@ -59,7 +59,10 @@ public:
     {
     }
 
-    ~ConnectionBase() override = default;
+    ~ConnectionBase() override
+    {
+        onDisconnect();
+    }
 
     /**
      * @brief Send the response to the client.

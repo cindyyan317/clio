@@ -253,7 +253,9 @@ if (tests)
     unittests/web/ServerTests.cpp
     unittests/web/RPCServerHandlerTests.cpp
     unittests/web/WhitelistHandlerTests.cpp
-    unittests/web/SweepHandlerTests.cpp)
+    unittests/web/SweepHandlerTests.cpp
+    # Feed
+    unittests/feed/ForwardFeedTests.cpp)
 
   include (CMake/deps/gtest.cmake)
 
