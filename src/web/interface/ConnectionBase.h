@@ -22,7 +22,9 @@
 #include "util/Taggable.h"
 
 #include <boost/beast/http.hpp>
+#include <boost/signals2.hpp>
 
+#include <functional>
 #include <utility>
 
 namespace web {
@@ -42,6 +44,9 @@ public:
     std::string const clientIp;
     bool upgraded = false;
     bool isAdmin_ = false;
+
+    using OnDisconnectSlot = std::function<void()>;
+    boost::signals2::signal<OnDisconnectSlot::result_type()> onDisconnect;
 
     /**
      * @brief Create a new connection base.
