@@ -26,8 +26,16 @@
 #include <string>
 
 namespace feed::impl {
+class WsSessionSlot;
+}  // namespace feed::impl
+
+template <>
+struct std::hash<feed::impl::WsSessionSlot>;
+
+namespace feed::impl {
 
 class WsSessionSlot {
+protected:
     std::reference_wrapper<std::shared_ptr<web::ConnectionBase>> wsConnection_;
 
 public:
@@ -61,5 +69,17 @@ public:
     {
         wsConnection_.get()->onDisconnect.connect(onDisconnect);
     }
+
+    friend struct std::hash<feed::impl::WsSessionSlot>;
 };
+
 }  // namespace feed::impl
+
+template <>
+struct std::hash<feed::impl::WsSessionSlot> {
+    std::size_t
+    operator()(feed::impl::WsSessionSlot const& k) const
+    {
+        return std::hash<std::shared_ptr<web::ConnectionBase>>()(k.wsConnection_.get());
+    }
+};
