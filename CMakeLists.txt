@@ -85,7 +85,10 @@ if (san)
   target_link_libraries(clio INTERFACE ${SAN_FLAG} ${SAN_LIB})
 endif ()
 
-# Generate `docs` target for doxygen documentation if enabled Note: use `make docs` to generate the documentation
+include(CMake/SHAMap.cmake)
+
+# Generate `docs` target for doxygen documentation if enabled
+# Note: use `make docs` to generate the documentation
 if (docs)
   add_subdirectory(docs)
 endif ()
