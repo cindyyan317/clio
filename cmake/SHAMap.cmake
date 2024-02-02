@@ -24,10 +24,10 @@ target_link_libraries (SHAMap
 
 target_sources (SHAMap PRIVATE
   src/shamap/impl/SHAMap.cpp
-  src/shamap/impl/SHAMapDelta.cpp
+#  src/shamap/impl/SHAMapDelta.cpp
   src/shamap/impl/SHAMapInnerNode.cpp
   src/shamap/impl/SHAMapLeafNode.cpp
   src/shamap/impl/SHAMapNodeID.cpp
-  src/shamap/impl/SHAMapSync.cpp
+#  src/shamap/impl/SHAMapSync.cpp
   src/shamap/impl/SHAMapTreeNode.cpp
 )

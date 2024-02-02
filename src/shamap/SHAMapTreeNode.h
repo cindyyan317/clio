@@ -24,7 +24,6 @@
 #include <ripple/basics/SHAMapHash.h>
 #include <ripple/beast/utility/Journal.h>
 #include <ripple/protocol/Serializer.h>
-#include <shamap/SHAMapItem.h>
 #include <shamap/SHAMapNodeID.h>
 
 #include <cstdint>
@@ -166,11 +165,11 @@ public:
     virtual void
     invariants(bool is_root = false) const = 0;
 
-    static std::shared_ptr<SHAMapTreeNode>
-    makeFromPrefix(Slice rawNode, SHAMapHash const& hash);
+    // static std::shared_ptr<SHAMapTreeNode>
+    // makeFromPrefix(Slice rawNode, SHAMapHash const& hash);
 
-    static std::shared_ptr<SHAMapTreeNode>
-    makeFromWire(Slice rawNode);
+    // static std::shared_ptr<SHAMapTreeNode>
+    // makeFromWire(Slice rawNode);
 
 private:
     static std::shared_ptr<SHAMapTreeNode>

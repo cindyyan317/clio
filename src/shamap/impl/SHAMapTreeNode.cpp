@@ -98,70 +98,70 @@ SHAMapTreeNode::makeAccountState(Slice data, SHAMapHash const& hash, bool hashVa
     return std::make_shared<SHAMapAccountStateLeafNode>(std::move(item), 0);
 }
 
-std::shared_ptr<SHAMapTreeNode>
-SHAMapTreeNode::makeFromWire(Slice rawNode)
-{
-    if (rawNode.empty())
-        return {};
+// std::shared_ptr<SHAMapTreeNode>
+// SHAMapTreeNode::makeFromWire(Slice rawNode)
+// {
+//     if (rawNode.empty())
+//         return {};
 
-    auto const type = rawNode[rawNode.size() - 1];
+//     auto const type = rawNode[rawNode.size() - 1];
 
-    rawNode.remove_suffix(1);
+//     rawNode.remove_suffix(1);
 
-    bool const hashValid = false;
-    SHAMapHash const hash;
+//     bool const hashValid = false;
+//     SHAMapHash const hash;
 
-    if (type == wireTypeTransaction)
-        return makeTransaction(rawNode, hash, hashValid);
+//     if (type == wireTypeTransaction)
+//         return makeTransaction(rawNode, hash, hashValid);
 
-    if (type == wireTypeAccountState)
-        return makeAccountState(rawNode, hash, hashValid);
+//     if (type == wireTypeAccountState)
+//         return makeAccountState(rawNode, hash, hashValid);
 
-    if (type == wireTypeInner)
-        return SHAMapInnerNode::makeFullInner(rawNode, hash, hashValid);
+//     if (type == wireTypeInner)
+//         return SHAMapInnerNode::makeFullInner(rawNode, hash, hashValid);
 
-    if (type == wireTypeCompressedInner)
-        return SHAMapInnerNode::makeCompressedInner(rawNode);
+//     if (type == wireTypeCompressedInner)
+//         return SHAMapInnerNode::makeCompressedInner(rawNode);
 
-    if (type == wireTypeTransactionWithMeta)
-        return makeTransactionWithMeta(rawNode, hash, hashValid);
+//     if (type == wireTypeTransactionWithMeta)
+//         return makeTransactionWithMeta(rawNode, hash, hashValid);
 
-    Throw<std::runtime_error>("wire: Unknown type (" + std::to_string(type) + ")");
-}
+//     Throw<std::runtime_error>("wire: Unknown type (" + std::to_string(type) + ")");
+// }
 
-std::shared_ptr<SHAMapTreeNode>
-SHAMapTreeNode::makeFromPrefix(Slice rawNode, SHAMapHash const& hash)
-{
-    if (rawNode.size() < 4)
-        Throw<std::runtime_error>("prefix: short node");
+// std::shared_ptr<SHAMapTreeNode>
+// SHAMapTreeNode::makeFromPrefix(Slice rawNode, SHAMapHash const& hash)
+// {
+//     if (rawNode.size() < 4)
+//         Throw<std::runtime_error>("prefix: short node");
 
-    // FIXME: Use SerialIter::get32?
-    // Extract the prefix
-    auto const type = safe_cast<HashPrefix>(
-        (safe_cast<std::uint32_t>(rawNode[0]) << 24) + (safe_cast<std::uint32_t>(rawNode[1]) << 16) +
-        (safe_cast<std::uint32_t>(rawNode[2]) << 8) + (safe_cast<std::uint32_t>(rawNode[3]))
-    );
+//     // FIXME: Use SerialIter::get32?
+//     // Extract the prefix
+//     auto const type = safe_cast<HashPrefix>(
+//         (safe_cast<std::uint32_t>(rawNode[0]) << 24) + (safe_cast<std::uint32_t>(rawNode[1]) << 16) +
+//         (safe_cast<std::uint32_t>(rawNode[2]) << 8) + (safe_cast<std::uint32_t>(rawNode[3]))
+//     );
 
-    rawNode.remove_prefix(4);
+//     rawNode.remove_prefix(4);
 
-    bool const hashValid = true;
+//     bool const hashValid = true;
 
-    if (type == HashPrefix::transactionID)
-        return makeTransaction(rawNode, hash, hashValid);
+//     if (type == HashPrefix::transactionID)
+//         return makeTransaction(rawNode, hash, hashValid);
 
-    if (type == HashPrefix::leafNode)
-        return makeAccountState(rawNode, hash, hashValid);
+//     if (type == HashPrefix::leafNode)
+//         return makeAccountState(rawNode, hash, hashValid);
 
-    if (type == HashPrefix::innerNode)
-        return SHAMapInnerNode::makeFullInner(rawNode, hash, hashValid);
+//     if (type == HashPrefix::innerNode)
+//         return SHAMapInnerNode::makeFullInner(rawNode, hash, hashValid);
 
-    if (type == HashPrefix::txNode)
-        return makeTransactionWithMeta(rawNode, hash, hashValid);
+//     if (type == HashPrefix::txNode)
+//         return makeTransactionWithMeta(rawNode, hash, hashValid);
 
-    Throw<std::runtime_error>(
-        "prefix: unknown type (" + std::to_string(safe_cast<std::underlying_type_t<HashPrefix>>(type)) + ")"
-    );
-}
+//     Throw<std::runtime_error>(
+//         "prefix: unknown type (" + std::to_string(safe_cast<std::underlying_type_t<HashPrefix>>(type)) + ")"
+//     );
+// }
 
 std::string
 SHAMapTreeNode::getString(SHAMapNodeID const& id) const

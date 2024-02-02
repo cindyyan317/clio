@@ -540,3 +540,16 @@ TEST_F(RPCHelpersTest, ParseIssue)
         std::runtime_error
     );
 }
+
+// TEST_F(RPCHelpersTest, TTTT)
+// {
+//     ripple::SHAMap stateMap = ripple::SHAMap(ripple::SHAMapType::STATE);
+
+//     auto mm = "1B8590C01B0006EDFA9ED60296DD052DC5E90F99659B25014D08E1BC983515BC";
+//     ripple::uint256 key = ripple::uint256{mm};
+//     char const* bb = "";
+//     ripple::Slice slice{bb, 4};
+//     stateMap.addItem(ripple::SHAMapNodeType::tnACCOUNT_STATE, make_shamapitem(key, slice));
+
+//     std::cout << stateMap.getHash().as_uint256() << std::endl;
+// }
