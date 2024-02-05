@@ -45,10 +45,32 @@ func getObjectsIndex(cluster *gocql.ClusterConfig, ledgerIndex uint64, from []by
 	}
 	defer session.Close()
 
+	first := make([]byte, 32)
+	end := make([]byte, 32)
+
+	for i := 0; i < 32; i++ {
+		first[i] = 0
+		end[i] = 0xff
+	}
+
 	cursorThread := make([]byte, 32)
 	copy(cursorThread, from)
 	var ret [][]byte
 	for {
+		if slices.Compare(first, from) != 0 && slices.Compare(end, from) != 0 {
+			var object []byte
+			err = session.Query("select object from objects where key = ? and sequence <= ? order by sequence desc limit 1",
+				from, ledgerIndex).Scan(&object)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if len(object) == 0 {
+				log.Printf("wrong object fetched %x for seq %d", from, ledgerIndex)
+			}
+		}
+		// add in shamap
+
+		// find next
 		next := make([]byte, 32)
 		err = session.Query(`select next from successor where key = ? and seq <= ? order by seq desc limit 1`,
 			from, ledgerIndex).Scan(&next)
@@ -60,8 +82,8 @@ func getObjectsIndex(cluster *gocql.ClusterConfig, ledgerIndex uint64, from []by
 			break
 		}
 		fmt.Printf("next : %x cursor thread : %x end to: %x\n", next, cursorThread, to)
+		ret = append(ret, from)
 		from = next
-		ret = append(ret, next)
 	}
 	return ret
 }
@@ -206,6 +228,8 @@ func checkingTransactionsFromLedger(ledgerIndex uint64) {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	kingpin.Parse()
 
 	hosts := strings.Split(*clusterHosts, ",")
