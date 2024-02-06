@@ -21,9 +21,16 @@ struct SHAMapWrapper {
 };
 
 SHAMap
-SHAMapInit()
+SHAMapStateInit()
 {
     auto ret = new SHAMapWrapper{ripple::SHAMapType::STATE};
+    return (SHAMap)ret;
+}
+
+SHAMap
+SHAMapTxMetaInit()
+{
+    auto ret = new SHAMapWrapper{ripple::SHAMapType::TRANSACTION};
     return (SHAMap)ret;
 }
 
@@ -44,17 +51,9 @@ SHAMapAddStateItem(SHAMap m, char const* key, char const* value, unsigned valueS
 }
 
 void
-SHAMapAddTxItem(
-    SHAMap m,
-    char const* key,
-    char const* value1,
-    unsigned value1Size,
-    char const* value2,
-    unsigned value2Size
-)
+SHAMapAddTxItem(SHAMap m, char const* value1, unsigned value1Size, char const* value2, unsigned value2Size)
 {
     SHAMapWrapper* w = (SHAMapWrapper*)m;
-    ripple::uint256 k{key};
     ripple::Slice slice1{value1, value1Size};
     ripple::Slice slice2{value2, value2Size};
 

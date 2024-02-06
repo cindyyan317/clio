@@ -90,6 +90,56 @@ func getObjectsIndex(cluster *gocql.ClusterConfig, ledgerIndex uint64, from []by
 	return ret
 }
 
+// TODO
+func getHashesFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64) ([]byte, []byte) {
+	session, err := cluster.CreateSession()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer session.Close()
+
+	return nil, nil
+}
+
+func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64) {
+	session, err := cluster.CreateSession()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer session.Close()
+	var hashes [][]byte
+	scanner := session.Query("select hash from ledger_transactions where ledger_sequence = ?", ledgerIndex).Iter().Scanner()
+	for scanner.Next() {
+		var (
+			hash []byte
+		)
+		err = scanner.Scan(&hash)
+		if err != nil {
+			log.Fatal(err)
+		}
+		hashes = append(hashes, hash)
+	}
+
+	txMap := shamap.MakeSHAMapTxMeta()
+
+	for _, hash := range hashes {
+		var tx []byte
+		var metadata []byte
+		err = session.Query(`select transaction,metadata from transactions where hash = ?`,
+			hash).Scan(&tx, &metadata)
+		if err != nil {
+			log.Fatal(err)
+		}
+		txMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
+	}
+	hashFromMap := txMap.GetHash()
+	fmt.Printf("ledger %d txHash: %s\n", ledgerIndex, hashFromMap)
+	fmt.Println(hashFromMap)
+
+}
+
 func getLedgerStatesCursor(cluster *gocql.ClusterConfig, diff uint32, startIdx uint64) ([][]byte, error) {
 
 	session, err := cluster.CreateSession()
@@ -221,22 +271,24 @@ func checkingStatesFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64, 
 	}
 }
 
-func checkingTransactionsFromLedger(ledgerIndex uint64) {
+func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64) {
 	for true {
 		fmt.Printf("Checking txs for ledger %d\n", ledgerIndex)
 		time.Sleep(1 * time.Second)
+		//getHashesFromLedger(cluster, ledgerIndex)
+		getTransactionsFromLedger(cluster, ledgerIndex)
 		ledgerIndex++
 	}
 }
 
-func main() {	
+func main() {
 	// test shamap bindings
 	shamap.SHAMapTest()
 	// map := shamap.MakeSHAMap()
 	// map.AddStateItem("key", "value", 4)
 	// hash := map.GetHash()
 	// fmt.Printf("hash: %s\n", hash)
-	
+
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	kingpin.Parse()
 
@@ -259,6 +311,6 @@ func main() {
 	}
 
 	//start checking from ledgerIndex, stop when the process ends
-	go checkingStatesFromLedger(cluster, *earliestLedgerIdx, *diff)
-	checkingTransactionsFromLedger(*earliestLedgerIdx)
+	//go checkingStatesFromLedger(cluster, *earliestLedgerIdx, *diff)
+	checkingTransactionsFromLedger(cluster, *earliestLedgerIdx)
 }

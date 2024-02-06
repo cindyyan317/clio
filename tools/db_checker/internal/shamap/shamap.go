@@ -17,9 +17,15 @@ type GoSHAMap struct {
 	shamap C.SHAMap
 }
 
-func MakeSHAMap() GoSHAMap {
+func MakeSHAMapState() GoSHAMap {
 	var ret GoSHAMap
-	ret.shamap = C.SHAMapInit()
+	ret.shamap = C.SHAMapStateInit()
+	return ret
+}
+
+func MakeSHAMapTxMeta() GoSHAMap {
+	var ret GoSHAMap
+	ret.shamap = C.SHAMapTxMetaInit()
 	return ret
 }
 
@@ -35,8 +41,8 @@ func (shamap GoSHAMap) AddStateItem(key string, value1 string, size1 uint32) {
 	C.SHAMapAddStateItem(shamap.shamap, C.CString(key), C.CString(value1), C.uint(size1))
 }
 
-func (shamap GoSHAMap) AddTxItem(key string, value1 string, size1 uint32, value2 string, size2 uint32) {
-	C.SHAMapAddTxItem(shamap.shamap, C.CString(key), C.CString(value1), C.uint(size1), C.CString(value2), C.uint(size2))	
+func (shamap GoSHAMap) AddTxItem(value1 string, size1 uint32, value2 string, size2 uint32) {
+	C.SHAMapAddTxItem(shamap.shamap, C.CString(value1), C.uint(size1), C.CString(value2), C.uint(size2))
 }
 
 func (shamap GoSHAMap) UpdateStateItem(key string, value string, size uint32) {
