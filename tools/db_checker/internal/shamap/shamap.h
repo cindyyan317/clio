@@ -7,7 +7,7 @@ SHAMap
 SHAMapStateInit();  // STATE
 
 SHAMap
-SHAMapTxMetaInit();  // STATE
+SHAMapTxMetaInit();  // Tx and Meta
 
 void SHAMapFree(SHAMap);
 

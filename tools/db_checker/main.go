@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"internal/shamap"
+	"internal/utils"
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/gocql/gocql"
@@ -90,8 +91,7 @@ func getObjectsIndex(cluster *gocql.ClusterConfig, ledgerIndex uint64, from []by
 	return ret
 }
 
-// TODO
-func getHashesFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64) ([]byte, []byte) {
+func getHashesFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64) (string, string) {
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Fatal(err)
@@ -99,10 +99,16 @@ func getHashesFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64) ([]by
 
 	defer session.Close()
 
-	return nil, nil
+	var header []byte
+	err = session.Query("select header from ledgers where sequence = ?",
+		ledgerIndex).Scan(&header)
+
+	txHash := utils.GetTxHashFromLedgerHeader(string(header[:]), uint32(len(header)))
+	stateHash := utils.GetStatesHashFromLedgerHeader(string(header[:]), uint32(len(header)))
+	return stateHash, txHash
 }
 
-func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64) {
+func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64) string {
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Fatal(err)
@@ -135,9 +141,10 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 		txMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
 	}
 	hashFromMap := txMap.GetHash()
-	fmt.Printf("ledger %d txHash: %s\n", ledgerIndex, hashFromMap)
-	fmt.Println(hashFromMap)
+	txMap.Free()
 
+	fmt.Printf("ledger %d txHash: %s\n", ledgerIndex, hashFromMap)
+	return hashFromMap
 }
 
 func getLedgerStatesCursor(cluster *gocql.ClusterConfig, diff uint32, startIdx uint64) ([][]byte, error) {
@@ -275,8 +282,12 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex ui
 	for true {
 		fmt.Printf("Checking txs for ledger %d\n", ledgerIndex)
 		time.Sleep(1 * time.Second)
-		//getHashesFromLedger(cluster, ledgerIndex)
-		getTransactionsFromLedger(cluster, ledgerIndex)
+		_, txHash := getHashesFromLedger(cluster, ledgerIndex)
+		txHashFromDB := getTransactionsFromLedger(cluster, ledgerIndex)
+		if txHash != txHashFromDB {
+			log.Fatalf("Tx hash mismatch for ledger %d: %s != %s\n", ledgerIndex, txHash, txHashFromDB)
+		}
+		log.Printf("Tx hash for ledger %d is correct: %s\n", ledgerIndex, txHash)
 		ledgerIndex++
 	}
 }
