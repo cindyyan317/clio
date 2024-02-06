@@ -6,9 +6,7 @@
 #include <shamap/SHAMapTreeNode.h>
 #include <shamap/impl/Type.h>
 
-#include <cassert>
 #include <stack>
-#include <vector>
 
 namespace ripple {
 

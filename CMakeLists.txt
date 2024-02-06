@@ -97,3 +97,7 @@ include(install/install)
 if (packaging)
   include(cmake/packaging.cmake) # This file exists only in build runner
 endif ()
+
+# build go tools
+include(CMake/CGo.cmake)
+add_subdirectory (tools/db_checker)

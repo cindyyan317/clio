@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"internal/shamap"
+
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/gocql/gocql"
 )
@@ -227,9 +229,15 @@ func checkingTransactionsFromLedger(ledgerIndex uint64) {
 	}
 }
 
-func main() {
+func main() {	
+	// test shamap bindings
+	shamap.SHAMapTest()
+	// map := shamap.MakeSHAMap()
+	// map.AddStateItem("key", "value", 4)
+	// hash := map.GetHash()
+	// fmt.Printf("hash: %s\n", hash)
+	
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
 	kingpin.Parse()
 
 	hosts := strings.Split(*clusterHosts, ",")
@@ -253,5 +261,4 @@ func main() {
 	//start checking from ledgerIndex, stop when the process ends
 	go checkingStatesFromLedger(cluster, *earliestLedgerIdx, *diff)
 	checkingTransactionsFromLedger(*earliestLedgerIdx)
-
 }
