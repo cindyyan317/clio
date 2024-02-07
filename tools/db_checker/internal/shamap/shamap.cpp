@@ -45,7 +45,7 @@ void
 SHAMapAddStateItem(SHAMap m, char const* key, char const* value, unsigned valueSize)
 {
     SHAMapWrapper* w = (SHAMapWrapper*)m;
-    ripple::uint256 k{key};
+    auto const k = ripple::uint256::fromVoid(key);
     ripple::Slice slice{value, valueSize};
     w->map.addItem(ripple::SHAMapNodeType::tnACCOUNT_STATE, make_shamapitem(k, slice));
 }

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -15,6 +15,18 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/gocql/gocql"
 )
+
+var CURSOR_START = make([]byte, 32)
+var CURSOR_END = make([]byte, 32)
+
+var statesMapMutex sync.Mutex
+
+func init() {
+	for i := 0; i < 32; i++ {
+		CURSOR_START[i] = 0
+		CURSOR_END[i] = 0xff
+	}
+}
 
 func getLedgerRange(cluster *gocql.ClusterConfig) (uint64, uint64, error) {
 	var (
@@ -41,7 +53,8 @@ func getLedgerRange(cluster *gocql.ClusterConfig) (uint64, uint64, error) {
 	return firstLedgerIdx, latestLedgerIdx, nil
 }
 
-func getObjectsIndex(cluster *gocql.ClusterConfig, ledgerIndex uint64, from []byte, to []byte) [][]byte {
+func LoadStatesFromCursor(cluster *gocql.ClusterConfig, stateMap *shamap.GoSHAMap, ledgerIndex uint64, from []byte, to []byte) [][]byte {
+	log.Printf("Start loading states from cursor %x to %x", from, to)
 
 	session, err := cluster.CreateSession()
 	if err != nil {
@@ -49,19 +62,12 @@ func getObjectsIndex(cluster *gocql.ClusterConfig, ledgerIndex uint64, from []by
 	}
 	defer session.Close()
 
-	first := make([]byte, 32)
-	end := make([]byte, 32)
-
-	for i := 0; i < 32; i++ {
-		first[i] = 0
-		end[i] = 0xff
-	}
-
 	cursorThread := make([]byte, 32)
 	copy(cursorThread, from)
+	log.Printf("Cursor : %x Begin\n", cursorThread)
 	var ret [][]byte
 	for {
-		if slices.Compare(first, from) != 0 && slices.Compare(end, from) != 0 {
+		if slices.Compare(CURSOR_START, from) != 0 && slices.Compare(CURSOR_END, from) != 0 {
 			var object []byte
 			err = session.Query("select object from objects where key = ? and sequence <= ? order by sequence desc limit 1",
 				from, ledgerIndex).Scan(&object)
@@ -71,24 +77,28 @@ func getObjectsIndex(cluster *gocql.ClusterConfig, ledgerIndex uint64, from []by
 			if len(object) == 0 {
 				log.Printf("wrong object fetched %x for seq %d", from, ledgerIndex)
 			}
+			// add in shamap
+			statesMapMutex.Lock()
+			stateMap.AddStateItem(string(from[:]), string(object[:]), uint32(len(object)))
+			statesMapMutex.Unlock()
 		}
-		// add in shamap
-
 		// find next
 		next := make([]byte, 32)
 		err = session.Query(`select next from successor where key = ? and seq <= ? order by seq desc limit 1`,
 			from, ledgerIndex).Scan(&next)
 		if err != nil {
+			log.Println("Error when fetch next from successor for %x", from)
 			log.Fatal(err)
 		}
 		// over scope
-		if slices.Compare(next, to) > 0 {
+		if slices.Compare(next, to) >= 0 {
 			break
 		}
-		fmt.Printf("next : %x cursor thread : %x end to: %x\n", next, cursorThread, to)
+		//log.Printf("next : %x cursor thread : %x end to: %x\n", next, cursorThread, to)
 		ret = append(ret, from)
 		from = next
 	}
+	log.Printf("Cursor : %x Finished\n", cursorThread)
 	return ret
 }
 
@@ -142,8 +152,6 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 		txMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
 	}
 	hashFromMap := txMap.GetHash()
-	data, err := hex.DecodeString(hashFromMap)
-	log.Printf("hash from map: %x\n", data)
 	txMap.Free()
 	return hashFromMap
 }
@@ -189,7 +197,7 @@ func getLedgerStatesCursor(cluster *gocql.ClusterConfig, diff uint32, startIdx u
 		return slices.Compare(a, b) == 0
 	})
 
-	fmt.Printf("%x \n", ret)
+	fmt.Printf("cursors before filter: %x \n", ret)
 	// filter out the deleted objects
 
 	for i := 0; i < len(ret); i++ {
@@ -200,7 +208,7 @@ func getLedgerStatesCursor(cluster *gocql.ClusterConfig, diff uint32, startIdx u
 			log.Fatal(err)
 		}
 		if len(object) == 0 {
-			fmt.Printf("cursor can not be deleted object %x\n", ret[i])
+			log.Printf("Remove deleted object from cursor list %x\n", ret[i])
 			ret = append(ret[:i], ret[i+1:]...)
 			i--
 		}
@@ -209,42 +217,37 @@ func getLedgerStatesCursor(cluster *gocql.ClusterConfig, diff uint32, startIdx u
 	return ret, nil
 }
 
-func LoadStatesFromCursor(cluster *gocql.ClusterConfig, ledgerIndex uint64, first []byte, end []byte) {
-	fmt.Printf("Loading states from %x to %x\n", first, end)
-
-	// load indexes from successor
-	getObjectsIndex(cluster, ledgerIndex, first, end)
-}
-
-func LoadStatesFromCursors(cluster *gocql.ClusterConfig, ledgerIndex uint64, cursors [][]byte) {
+func LoadStatesFromCursors(cluster *gocql.ClusterConfig, ledgerIndex uint64, cursors [][]byte) string {
 
 	first := make([]byte, 32)
 	end := make([]byte, 32)
 
-	for i := 0; i < 32; i++ {
-		first[i] = 0
-		end[i] = 0xff
-	}
+	copy(first, CURSOR_START)
+	copy(end, CURSOR_END)
 
 	var wg sync.WaitGroup
 	wg.Add(1 + len(cursors))
+	statesMap := shamap.MakeSHAMapState()
 	for _, cursor := range cursors {
 		firstCpy := make([]byte, 32)
 		cursorCpy := make([]byte, 32)
 		copy(firstCpy, first)
 		copy(cursorCpy, cursor)
 		go func() {
-			LoadStatesFromCursor(cluster, ledgerIndex, firstCpy, cursorCpy)
+			LoadStatesFromCursor(cluster, &statesMap, ledgerIndex, firstCpy, cursorCpy)
 			wg.Done()
 		}()
 		first = cursor
 	}
 
-	LoadStatesFromCursor(cluster, ledgerIndex, first, end)
+	LoadStatesFromCursor(cluster, &statesMap, ledgerIndex, first, end)
 	wg.Done()
 
 	wg.Wait()
 
+	hash := statesMap.GetHash()
+	statesMap.Free()
+	return hash
 }
 
 var (
@@ -260,36 +263,39 @@ var (
 
 	userName = kingpin.Flag("username", "Username to use when connecting to the cluster").String()
 	password = kingpin.Flag("password", "Password to use when connecting to the cluster").String()
-
-	numberOfParallelClientThreads = 1 // the calculated number of parallel threads the client should run
 )
 
-func checkingStatesFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64, diff uint32) {
-	for true {
-		fmt.Printf("Checking states for ledger %d\n", ledgerIndex)
+func checkingStatesFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, diff uint32) uint64 {
+	ledgerIndex := startLedgerIndex
+	for ledgerIndex <= endLedgerIndex {
+		log.Printf("Checking states for ledger %d\n", ledgerIndex)
 
 		cursor, _ := getLedgerStatesCursor(cluster, diff, ledgerIndex)
-
 		//using cursor to start loading from DB
-		LoadStatesFromCursors(cluster, ledgerIndex, cursor)
+		ledgerHashFromMap := LoadStatesFromCursors(cluster, ledgerIndex, cursor)
+		ledgerHashFromHeader, _ := getHashesFromLedgerHeader(cluster, ledgerIndex)
 
-		time.Sleep(1 * time.Second)
+		if ledgerHashFromHeader != ledgerHashFromMap {
+			log.Fatalf("state hash mismatch for ledger %d: %s != %s\n", ledgerIndex, ledgerHashFromMap, ledgerHashFromHeader)
+		}
+		log.Printf("States hash for ledger %d is correct: %s\n\n", ledgerIndex, ledgerHashFromHeader)
 		ledgerIndex++
 	}
+	return ledgerIndex
 }
 
 func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64) {
 	ledgerIndex := startLedgerIndex
 	for ledgerIndex <= endLedgerIndex {
 		log.Printf("Checking txs for ledger %d\n", ledgerIndex)
+
 		_, txHashStr := getHashesFromLedgerHeader(cluster, ledgerIndex)
 		txHashFromDBStr := getTransactionsFromLedger(cluster, ledgerIndex)
-		txHash, _ := hex.DecodeString(txHashStr)
-		txHashFromDB, _ := hex.DecodeString(txHashFromDBStr)
-		if slices.Compare(txHash, txHashFromDB) != 0 {
-			log.Fatalf("Tx hash mismatch for ledger %d: %x != %x\n", ledgerIndex, txHash, txHashFromDB)
+
+		if txHashStr != txHashFromDBStr {
+			log.Fatalf("Tx hash mismatch for ledger %d: %s != %s\n", ledgerIndex, txHashStr, txHashFromDBStr)
 		}
-		log.Printf("Tx hash for ledger %d is correct: %x\n", ledgerIndex, txHash)
+		log.Printf("Tx hash for ledger %d is correct: %s\n\n", ledgerIndex, txHashStr)
 		ledgerIndex++
 	}
 }
@@ -301,7 +307,7 @@ func main() {
 	// map.AddStateItem("key", "value", 4)
 	// hash := map.GetHash()
 	// fmt.Printf("hash: %s\n", hash)
-
+	log.SetOutput(os.Stdout)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	kingpin.Parse()
 
@@ -324,13 +330,22 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("DB ledger seq range: %d, %d\n", earliestLedgerIdxInDB, latestLedgerIdxInDB)
+	log.Printf("DB ledger seq range: %d, %d\n", earliestLedgerIdxInDB, latestLedgerIdxInDB)
 
 	if earliestLedgerIdxInDB > *earliestLedgerIdx || latestLedgerIdxInDB < *earliestLedgerIdx {
 		log.Fatalf("Requested sequence %d not in the DB range %d-%d\n", *earliestLedgerIdx, earliestLedgerIdxInDB, latestLedgerIdxInDB)
 	}
 
+	log.Printf("checking from range: %d to %d\n", *earliestLedgerIdx, latestLedgerIdxInDB)
+
 	//start checking from ledgerIndex, stop when the process ends
-	//go checkingStatesFromLedger(cluster, *earliestLedgerIdx, *diff)
+	lastCheckSeq := make(chan uint64)
+	go func() {
+		seq := checkingStatesFromLedger(cluster, *earliestLedgerIdx, latestLedgerIdxInDB, *diff)
+		lastCheckSeq <- seq
+	}()
 	checkingTransactionsFromLedger(cluster, *earliestLedgerIdx, latestLedgerIdxInDB)
+
+	lastStatesSeq := <-lastCheckSeq
+	log.Println("Finish check from %d to %d, all states and txs are correct", *earliestLedgerIdx, lastStatesSeq)
 }
