@@ -54,7 +54,12 @@ func (shamap GoSHAMap) DeleteKey(key string) {
 }
 
 func (shamap GoSHAMap) GetHash() string {
-	cstr := make([]C.char, 256)
+	//32 is 256/sizeof(char)
+	cstr := make([]C.char, 32)
 	C.SHAMapGetHash256(shamap.shamap, (*C.char)(unsafe.Pointer(&cstr[0])))
-	return strings.ToUpper(hex.EncodeToString([]byte(C.GoString(&cstr[0]))))
+	cbytes := make([]byte, 32)
+	for i := range cbytes {
+		cbytes[i] = byte(cstr[i])
+	}
+	return strings.ToUpper(hex.EncodeToString(cbytes))
 }

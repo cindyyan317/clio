@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"slices"
@@ -91,7 +92,7 @@ func getObjectsIndex(cluster *gocql.ClusterConfig, ledgerIndex uint64, from []by
 	return ret
 }
 
-func getHashesFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64) (string, string) {
+func getHashesFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uint64) (string, string) {
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Fatal(err)
@@ -141,9 +142,9 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 		txMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
 	}
 	hashFromMap := txMap.GetHash()
+	data, err := hex.DecodeString(hashFromMap)
+	log.Printf("hash from map: %x\n", data)
 	txMap.Free()
-
-	fmt.Printf("ledger %d txHash: %s\n", ledgerIndex, hashFromMap)
 	return hashFromMap
 }
 
@@ -270,7 +271,6 @@ func checkingStatesFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64, 
 		cursor, _ := getLedgerStatesCursor(cluster, diff, ledgerIndex)
 
 		//using cursor to start loading from DB
-
 		LoadStatesFromCursors(cluster, ledgerIndex, cursor)
 
 		time.Sleep(1 * time.Second)
@@ -278,16 +278,18 @@ func checkingStatesFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64, 
 	}
 }
 
-func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64) {
-	for true {
-		fmt.Printf("Checking txs for ledger %d\n", ledgerIndex)
-		time.Sleep(1 * time.Second)
-		_, txHash := getHashesFromLedger(cluster, ledgerIndex)
-		txHashFromDB := getTransactionsFromLedger(cluster, ledgerIndex)
-		if txHash != txHashFromDB {
-			log.Fatalf("Tx hash mismatch for ledger %d: %s != %s\n", ledgerIndex, txHash, txHashFromDB)
+func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64) {
+	ledgerIndex := startLedgerIndex
+	for ledgerIndex <= endLedgerIndex {
+		log.Printf("Checking txs for ledger %d\n", ledgerIndex)
+		_, txHashStr := getHashesFromLedgerHeader(cluster, ledgerIndex)
+		txHashFromDBStr := getTransactionsFromLedger(cluster, ledgerIndex)
+		txHash, _ := hex.DecodeString(txHashStr)
+		txHashFromDB, _ := hex.DecodeString(txHashFromDBStr)
+		if slices.Compare(txHash, txHashFromDB) != 0 {
+			log.Fatalf("Tx hash mismatch for ledger %d: %x != %x\n", ledgerIndex, txHash, txHashFromDB)
 		}
-		log.Printf("Tx hash for ledger %d is correct: %s\n", ledgerIndex, txHash)
+		log.Printf("Tx hash for ledger %d is correct: %x\n", ledgerIndex, txHash)
 		ledgerIndex++
 	}
 }
@@ -311,6 +313,13 @@ func main() {
 	cluster.PageSize = *clusterPageSize
 	cluster.Keyspace = *keyspace
 
+	if *userName != "" {
+		cluster.Authenticator = gocql.PasswordAuthenticator{
+			Username: *userName,
+			Password: *password,
+		}
+	}
+
 	earliestLedgerIdxInDB, latestLedgerIdxInDB, err := getLedgerRange(cluster)
 	if err != nil {
 		log.Fatal(err)
@@ -323,5 +332,5 @@ func main() {
 
 	//start checking from ledgerIndex, stop when the process ends
 	//go checkingStatesFromLedger(cluster, *earliestLedgerIdx, *diff)
-	checkingTransactionsFromLedger(cluster, *earliestLedgerIdx)
+	checkingTransactionsFromLedger(cluster, *earliestLedgerIdx, latestLedgerIdxInDB)
 }
