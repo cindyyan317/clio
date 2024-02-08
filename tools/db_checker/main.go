@@ -53,7 +53,7 @@ func getLedgerRange(cluster *gocql.ClusterConfig) (uint64, uint64, error) {
 	return firstLedgerIdx, latestLedgerIdx, nil
 }
 
-func LoadStatesFromCursor(cluster *gocql.ClusterConfig, stateMap *shamap.GoSHAMap, ledgerIndex uint64, from []byte, to []byte) [][]byte {
+func LoadStatesFromCursor(cluster *gocql.ClusterConfig, stateMap *shamap.GoSHAMap, ledgerIndex uint64, from []byte, to []byte) {
 	log.Printf("Start loading states from cursor %x to %x", from, to)
 
 	session, err := cluster.CreateSession()
@@ -65,7 +65,6 @@ func LoadStatesFromCursor(cluster *gocql.ClusterConfig, stateMap *shamap.GoSHAMa
 	cursorThread := make([]byte, 32)
 	copy(cursorThread, from)
 	log.Printf("Cursor : %x Begin\n", cursorThread)
-	var ret [][]byte
 	for {
 		if slices.Compare(CURSOR_START, from) != 0 && slices.Compare(CURSOR_END, from) != 0 {
 			var object []byte
@@ -96,11 +95,9 @@ func LoadStatesFromCursor(cluster *gocql.ClusterConfig, stateMap *shamap.GoSHAMa
 			break
 		}
 		//log.Printf("next : %x cursor thread : %x end to: %x\n", next, cursorThread, to)
-		ret = append(ret, from)
 		from = next
 	}
 	log.Printf("Cursor : %x Finished\n", cursorThread)
-	return ret
 }
 
 func getHashesFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uint64) (string, string) {
