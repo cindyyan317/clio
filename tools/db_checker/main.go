@@ -88,7 +88,7 @@ func LoadStatesFromCursor(cluster *gocql.ClusterConfig, stateMap *shamap.GoSHAMa
 		err = session.Query(`select next from successor where key = ? and seq <= ? order by seq desc limit 1`,
 			from, ledgerIndex).Scan(&next)
 		if err != nil {
-			log.Println("Error when fetch next from successor for %x", from)
+			log.Printf("Error when fetch next from successor for %x", from)
 			log.Fatal(err)
 		}
 		// over scope
@@ -255,6 +255,7 @@ var (
 	clusterHosts      = kingpin.Arg("hosts", "Your Scylla nodes IP addresses, comma separated (i.e. 192.168.1.1,192.168.1.2,192.168.1.3)").Required().String()
 	earliestLedgerIdx = kingpin.Flag("ledgerIdx", "Sets the earliest ledger_index to keep untouched").Short('i').Required().Uint64()
 	diff              = kingpin.Flag("diff", "Set the diff numbers to be used to loading ledger in parallel").Short('d').Default("16").Uint32()
+	skipTx            = kingpin.Flag("skip-tx", "Whether to skip tx validation").Default("false").Bool()
 
 	clusterTimeout        = kingpin.Flag("timeout", "Maximum duration for query execution in millisecond").Short('t').Default("90000").Int()
 	clusterNumConnections = kingpin.Flag("cluster-number-of-connections", "Number of connections per host per session (in our case, per thread)").Short('b').Default("1").Int()
@@ -302,12 +303,6 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 }
 
 func main() {
-	// test shamap bindings
-	shamap.SHAMapTest()
-	// map := shamap.MakeSHAMap()
-	// map.AddStateItem("key", "value", 4)
-	// hash := map.GetHash()
-	// fmt.Printf("hash: %s\n", hash)
 	log.SetOutput(os.Stdout)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	kingpin.Parse()
@@ -345,7 +340,10 @@ func main() {
 		seq := checkingStatesFromLedger(cluster, *earliestLedgerIdx, latestLedgerIdxInDB, *diff)
 		lastCheckSeq <- seq
 	}()
-	checkingTransactionsFromLedger(cluster, *earliestLedgerIdx, latestLedgerIdxInDB)
+
+	if !*skipTx {
+		go checkingTransactionsFromLedger(cluster, *earliestLedgerIdx, latestLedgerIdxInDB)
+	}
 
 	lastStatesSeq := <-lastCheckSeq
 	log.Println("Finish check from %d to %d, all states and txs are correct", *earliestLedgerIdx, lastStatesSeq)
