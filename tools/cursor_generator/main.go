@@ -5,6 +5,7 @@
 package main
 
 import (
+	"crypto/sha512"
 	"log"
 	"math"
 	"math/rand"
@@ -18,7 +19,7 @@ import (
 )
 
 const (
-	cursorsPerToken = 1
+	cursorsPerToken = 1000
 )
 
 var (
@@ -34,7 +35,7 @@ var (
 )
 
 func fetchCursor(token uint64, cluster *gocql.ClusterConfig) [][]byte {
-	query := "SELECT key, object FROM objects WHERE token(key) > ? LIMIT 1"
+	query := "SELECT key, object FROM objects WHERE token(key) > ? LIMIT ?"
 
 	session, err := cluster.CreateSession()
 	if err != nil {
@@ -44,7 +45,7 @@ func fetchCursor(token uint64, cluster *gocql.ClusterConfig) [][]byte {
 	defer session.Close()
 
 	ret := make([][]byte, 0)
-	iter := session.Query(query, token).Iter().Scanner()
+	iter := session.Query(query, token, cursorsPerToken).Iter().Scanner()
 
 	for iter.Next() {
 		var key, object []byte
@@ -76,6 +77,51 @@ func fetchCursor(token uint64, cluster *gocql.ClusterConfig) [][]byte {
 			miss++
 		} else {
 			newRet = append(newRet, key)
+		}
+	}
+	return ret
+}
+
+func fetchCursorFromAccount(token uint64, cluster *gocql.ClusterConfig) [][]byte {
+	query := "SELECT account FROM account_tx PER PARTITION LIMIT 1 LIMIT ?"
+
+	session, err := cluster.CreateSession()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer session.Close()
+
+	ret := make([][]byte, 0)
+	iter := session.Query(query, cursorsPerToken).Iter().Scanner()
+
+	for iter.Next() {
+		var account []byte
+		if err := iter.Scan(&account); err != nil {
+			log.Fatal(err)
+		}
+		ret = append(ret, account)
+	}
+
+	log.Printf("accounts %x", ret)
+
+	// check object exists
+	query = "select object from objects where key = ?"
+	var obj []byte
+	var newRet [][]byte
+	for _, account := range ret {
+		d := sha512.New()
+		d.Write([]byte{0, 'a'})
+		d.Write(account)
+		accountRoot := d.Sum(nil)[0:32]
+		log.Printf("account %x", accountRoot)
+		session.Query(query, accountRoot).Scan(&obj)
+
+		if len(obj) == 0 {
+			log.Printf("object deleted %x", accountRoot)
+			miss++
+		} else {
+			newRet = append(newRet, accountRoot)
 		}
 	}
 	return ret
@@ -129,6 +175,30 @@ func getLedgerRange(cluster *gocql.ClusterConfig) (uint64, uint64, error) {
 	return firstLedgerIdx, latestLedgerIdx, nil
 }
 
+func generateCursorFromAccounts(cursorNum int, cluster *gocql.ClusterConfig) [][]byte {
+
+	tokenNumFloat := float64(cursorNum) / float64(cursorsPerToken)
+
+	tokenNum := int(math.Ceil(tokenNumFloat))
+
+	ret := make([][]byte, 0)
+	for i := 0; i < tokenNum; i++ {
+		cursor := rand.Uint64()
+
+		cursors := fetchCursorFromAccount(cursor, cluster)
+		ret = append(ret, cursors...)
+		log.Println(cursor)
+	}
+
+	log.Printf("miss %d get %d", miss, len(ret))
+
+	if len(ret) > cursorNum {
+		ret = ret[:cursorNum]
+	}
+
+	return ret
+}
+
 func main() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -152,8 +222,8 @@ func main() {
 		}
 	}
 	//getLedgerRange(cluster)
-	cursors := generateCursorFromObjects(100, cluster)
-
+	//cursors := generateCursorFromObjects(100, cluster)
+	cursors := generateCursorFromAccounts(1000, cluster)
 	slices.SortFunc(cursors, func(a, b []byte) int {
 		for i := range a {
 			if a[i] != b[i] {
