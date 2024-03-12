@@ -17,12 +17,12 @@
 */
 //==============================================================================
 
-#ifndef RIPPLE_SHAMAP_SHAMAPLEAFTXPLUSMETANODE_H_INCLUDED
-#define RIPPLE_SHAMAP_SHAMAPLEAFTXPLUSMETANODE_H_INCLUDED
+#ifndef RIPPLE_SHAMAP_SHAMAPACCOUNTSTATELEAFNODE_H_INCLUDED
+#define RIPPLE_SHAMAP_SHAMAPACCOUNTSTATELEAFNODE_H_INCLUDED
 
-#include "shamap/SHAMapItem.h"
-#include "shamap/SHAMapLeafNode.h"
-#include "shamap/SHAMapNodeID.h"
+#include "shamap/SHAMapItem.hpp"
+#include "shamap/SHAMapLeafNode.hpp"
+#include "shamap/SHAMapNodeID.hpp"
 
 #include <ripple/basics/CountedObject.h>
 #include <ripple/protocol/HashPrefix.h>
@@ -30,36 +30,36 @@
 
 namespace ripple {
 
-/** A leaf node for a transaction and its associated metadata. */
-class SHAMapTxPlusMetaLeafNode final : public SHAMapLeafNode, public CountedObject<SHAMapTxPlusMetaLeafNode> {
+/** A leaf node for a state object. */
+class SHAMapAccountStateLeafNode final : public SHAMapLeafNode, public CountedObject<SHAMapAccountStateLeafNode> {
 public:
-    SHAMapTxPlusMetaLeafNode(boost::intrusive_ptr<SHAMapItem const> item, std::uint32_t cowid)
+    SHAMapAccountStateLeafNode(boost::intrusive_ptr<SHAMapItem const> item, std::uint32_t cowid)
         : SHAMapLeafNode(std::move(item), cowid)
     {
         updateHash();
     }
 
-    SHAMapTxPlusMetaLeafNode(boost::intrusive_ptr<SHAMapItem const> item, std::uint32_t cowid, SHAMapHash const& hash)
+    SHAMapAccountStateLeafNode(boost::intrusive_ptr<SHAMapItem const> item, std::uint32_t cowid, SHAMapHash const& hash)
         : SHAMapLeafNode(std::move(item), cowid, hash)
     {
     }
 
     std::shared_ptr<SHAMapTreeNode>
-    clone(std::uint32_t cowid) const override
+    clone(std::uint32_t cowid) const final override
     {
-        return std::make_shared<SHAMapTxPlusMetaLeafNode>(item_, cowid, hash_);
+        return std::make_shared<SHAMapAccountStateLeafNode>(item_, cowid, hash_);
     }
 
     SHAMapNodeType
-    getType() const override
+    getType() const final override
     {
-        return SHAMapNodeType::tnTRANSACTION_MD;
+        return SHAMapNodeType::tnACCOUNT_STATE;
     }
 
     void
     updateHash() final override
     {
-        hash_ = SHAMapHash{sha512Half(HashPrefix::txNode, item_->slice(), item_->key())};
+        hash_ = SHAMapHash{sha512Half(HashPrefix::leafNode, item_->slice(), item_->key())};
     }
 
     void
@@ -67,13 +67,13 @@ public:
     {
         s.addRaw(item_->slice());
         s.addBitString(item_->key());
-        s.add8(wireTypeTransactionWithMeta);
+        s.add8(wireTypeAccountState);
     }
 
     void
     serializeWithPrefix(Serializer& s) const final override
     {
-        s.add32(HashPrefix::txNode);
+        s.add32(HashPrefix::leafNode);
         s.addRaw(item_->slice());
         s.addBitString(item_->key());
     }

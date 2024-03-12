@@ -87,8 +87,7 @@ endif ()
 
 include(CMake/SHAMap.cmake)
 
-# Generate `docs` target for doxygen documentation if enabled
-# Note: use `make docs` to generate the documentation
+# Generate `docs` target for doxygen documentation if enabled Note: use `make docs` to generate the documentation
 if (docs)
   add_subdirectory(docs)
 endif ()
@@ -100,4 +99,4 @@ endif ()
 
 # build go tools
 include(CMake/CGo.cmake)
-add_subdirectory (tools/db_checker)
+add_subdirectory(tools/db_checker)

@@ -19,8 +19,8 @@
 
 #include <boost/pool/pool_alloc.hpp>
 #include <ripple/basics/ByteUtilities.h>
-#include <shamap/SHAMapInnerNode.h>
-#include <shamap/impl/TaggedPointer.h>
+#include <shamap/SHAMapInnerNode.hpp>
+#include <shamap/impl/TaggedPointer.hpp>
 
 #include <array>
 #include <bit>

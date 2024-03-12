@@ -20,9 +20,9 @@
 #ifndef RIPPLE_SHAMAP_SHAMAPTXLEAFNODE_H_INCLUDED
 #define RIPPLE_SHAMAP_SHAMAPTXLEAFNODE_H_INCLUDED
 
-#include "shamap/SHAMapItem.h"
-#include "shamap/SHAMapLeafNode.h"
-#include "shamap/SHAMapNodeID.h"
+#include "shamap/SHAMapItem.hpp"
+#include "shamap/SHAMapLeafNode.hpp"
+#include "shamap/SHAMapNodeID.hpp"
 
 #include <ripple/basics/CountedObject.h>
 #include <ripple/protocol/HashPrefix.h>

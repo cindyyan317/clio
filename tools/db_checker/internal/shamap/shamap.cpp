@@ -1,8 +1,8 @@
 #include "shamap.h"
 
-#include "shamap/SHAMap.h"
-#include "shamap/SHAMapItem.h"
-#include "shamap/SHAMapTreeNode.h"
+#include "shamap/SHAMap.hpp"
+#include "shamap/SHAMapItem.hpp"
+#include "shamap/SHAMapTreeNode.hpp"
 
 #include <ripple/basics/Slice.h>
 #include <ripple/basics/base_uint.h>

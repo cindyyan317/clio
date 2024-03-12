@@ -17,9 +17,9 @@
 */
 //==============================================================================
 
-#include "shamap/SHAMapNodeID.h"
+#include "shamap/SHAMapNodeID.hpp"
 
-#include "shamap/SHAMap.h"
+#include "shamap/SHAMap.hpp"
 
 #include <ripple/beast/core/LexicalCast.h>
 #include <ripple/crypto/csprng.h>

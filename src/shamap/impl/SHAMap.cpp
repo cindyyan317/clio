@@ -1,11 +1,11 @@
 
 
-#include "shamap/SHAMap.h"
+#include "shamap/SHAMap.hpp"
 
-#include "shamap/SHAMapAccountStateLeafNode.h"
-#include "shamap/SHAMapLeafNode.h"
-#include "shamap/SHAMapTxLeafNode.h"
-#include "shamap/SHAMapTxPlusMetaLeafNode.h"
+#include "shamap/SHAMapAccountStateLeafNode.hpp"
+#include "shamap/SHAMapLeafNode.hpp"
+#include "shamap/SHAMapTxLeafNode.hpp"
+#include "shamap/SHAMapTxPlusMetaLeafNode.hpp"
 
 namespace ripple {
 

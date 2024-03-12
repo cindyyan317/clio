@@ -17,13 +17,13 @@
 */
 //==============================================================================
 
-#include "shamap/SHAMapTreeNode.h"
+#include "shamap/SHAMapTreeNode.hpp"
 
-#include "shamap/SHAMapAccountStateLeafNode.h"
-#include "shamap/SHAMapInnerNode.h"
-#include "shamap/SHAMapLeafNode.h"
-#include "shamap/SHAMapTxLeafNode.h"
-#include "shamap/SHAMapTxPlusMetaLeafNode.h"
+#include "shamap/SHAMapAccountStateLeafNode.hpp"
+#include "shamap/SHAMapInnerNode.hpp"
+#include "shamap/SHAMapLeafNode.hpp"
+#include "shamap/SHAMapTxLeafNode.hpp"
+#include "shamap/SHAMapTxPlusMetaLeafNode.hpp"
 
 #include <openssl/sha.h>
 #include <ripple/basics/Log.h>

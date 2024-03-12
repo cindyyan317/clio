@@ -1,9 +1,9 @@
 #pragma once
 
-#include "shamap/SHAMapInnerNode.h"
-#include "shamap/SHAMapLeafNode.h"
-#include "shamap/SHAMapTreeNode.h"
-#include "shamap/impl/Type.h"
+#include "shamap/SHAMapInnerNode.hpp"
+#include "shamap/SHAMapLeafNode.hpp"
+#include "shamap/SHAMapTreeNode.hpp"
+#include "shamap/impl/Type.hpp"
 
 #include <stack>
 

@@ -20,10 +20,10 @@
 #ifndef RIPPLE_SHAMAP_SHAMAPINNERNODE_H_INCLUDED
 #define RIPPLE_SHAMAP_SHAMAPINNERNODE_H_INCLUDED
 
-#include "shamap/SHAMapItem.h"
-#include "shamap/SHAMapNodeID.h"
-#include "shamap/SHAMapTreeNode.h"
-#include "shamap/impl/TaggedPointer.h"
+#include "shamap/SHAMapItem.hpp"
+#include "shamap/SHAMapNodeID.hpp"
+#include "shamap/SHAMapTreeNode.hpp"
+#include "shamap/impl/TaggedPointer.hpp"
 
 #include <ripple/beast/utility/Journal.h>
 

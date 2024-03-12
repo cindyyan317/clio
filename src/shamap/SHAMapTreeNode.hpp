@@ -20,7 +20,7 @@
 #ifndef RIPPLE_SHAMAP_SHAMAPTREENODE_H_INCLUDED
 #define RIPPLE_SHAMAP_SHAMAPTREENODE_H_INCLUDED
 
-#include "shamap/SHAMapNodeID.h"
+#include "shamap/SHAMapNodeID.hpp"
 
 #include <ripple/basics/CountedObject.h>
 #include <ripple/basics/SHAMapHash.h>

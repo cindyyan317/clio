@@ -20,7 +20,7 @@
 #ifndef RIPPLE_SHAMAP_TAGGEDPOINTER_H_INCLUDED
 #define RIPPLE_SHAMAP_TAGGEDPOINTER_H_INCLUDED
 
-#include "shamap/SHAMapTreeNode.h"
+#include "shamap/SHAMapTreeNode.hpp"
 
 #include <array>
 #include <bit>

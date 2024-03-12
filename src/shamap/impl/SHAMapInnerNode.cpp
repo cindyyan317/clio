@@ -17,9 +17,9 @@
 */
 //==============================================================================
 
-#include "shamap/SHAMapInnerNode.h"
+#include "shamap/SHAMapInnerNode.hpp"
 
-#include "shamap/SHAMapTreeNode.h"
+#include "shamap/SHAMapTreeNode.hpp"
 #include "shamap/impl/TaggedPointer.ipp"
 
 #include <ripple/basics/Log.h>

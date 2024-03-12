@@ -23,6 +23,7 @@
 #include <boost/align.hpp>
 #include <boost/container/static_vector.hpp>
 #include <boost/predef.h>
+#include <ripple/basics/ByteUtilities.h>
 #include <ripple/beast/type_name.h>
 
 #include <algorithm>
