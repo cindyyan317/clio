@@ -1,3 +1,4 @@
+// To check the transactions :  ./tools/db_checker/db_checker --tx --username xxx --password xxx --keyspace xxx --fromLedgerIdx 86562170 --toLedgerIdx 86562172
 package main
 
 import (
