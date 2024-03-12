@@ -17,6 +17,11 @@
 */
 //==============================================================================
 
+#include "shamap/SHAMapInnerNode.h"
+
+#include "shamap/SHAMapTreeNode.h"
+#include "shamap/impl/TaggedPointer.ipp"
+
 #include <ripple/basics/Log.h>
 #include <ripple/basics/Slice.h>
 #include <ripple/basics/contract.h>
@@ -24,12 +29,9 @@
 #include <ripple/beast/core/LexicalCast.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/digest.h>
-#include <shamap/SHAMapInnerNode.h>
-#include <shamap/SHAMapTreeNode.h>
 
 #include <algorithm>
 #include <iterator>
-#include <shamap/impl/TaggedPointer.ipp>
 #include <utility>
 
 namespace ripple {

@@ -20,12 +20,13 @@
 #ifndef RIPPLE_SHAMAP_SHAMAPACCOUNTSTATELEAFNODE_H_INCLUDED
 #define RIPPLE_SHAMAP_SHAMAPACCOUNTSTATELEAFNODE_H_INCLUDED
 
+#include "shamap/SHAMapItem.h"
+#include "shamap/SHAMapLeafNode.h"
+#include "shamap/SHAMapNodeID.h"
+
 #include <ripple/basics/CountedObject.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/digest.h>
-#include <shamap/SHAMapItem.h>
-#include <shamap/SHAMapLeafNode.h>
-#include <shamap/SHAMapNodeID.h>
 
 namespace ripple {
 

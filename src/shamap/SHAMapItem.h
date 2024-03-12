@@ -20,12 +20,13 @@
 #ifndef RIPPLE_SHAMAP_SHAMAPITEM_H_INCLUDED
 #define RIPPLE_SHAMAP_SHAMAPITEM_H_INCLUDED
 
+#include "shamap/SlabAllocator.h"
+
 #include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <ripple/basics/ByteUtilities.h>
 #include <ripple/basics/CountedObject.h>
 #include <ripple/basics/Slice.h>
 #include <ripple/basics/base_uint.h>
-#include <shamap/SlabAllocator.h>
 
 #include <cassert>
 

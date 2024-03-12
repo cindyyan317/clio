@@ -17,6 +17,14 @@
 */
 //==============================================================================
 
+#include "shamap/SHAMapTreeNode.h"
+
+#include "shamap/SHAMapAccountStateLeafNode.h"
+#include "shamap/SHAMapInnerNode.h"
+#include "shamap/SHAMapLeafNode.h"
+#include "shamap/SHAMapTxLeafNode.h"
+#include "shamap/SHAMapTxPlusMetaLeafNode.h"
+
 #include <openssl/sha.h>
 #include <ripple/basics/Log.h>
 #include <ripple/basics/Slice.h>
@@ -25,12 +33,6 @@
 #include <ripple/beast/core/LexicalCast.h>
 #include <ripple/protocol/HashPrefix.h>
 #include <ripple/protocol/digest.h>
-#include <shamap/SHAMapAccountStateLeafNode.h>
-#include <shamap/SHAMapInnerNode.h>
-#include <shamap/SHAMapLeafNode.h>
-#include <shamap/SHAMapTreeNode.h>
-#include <shamap/SHAMapTxLeafNode.h>
-#include <shamap/SHAMapTxPlusMetaLeafNode.h>
 
 #include <mutex>
 

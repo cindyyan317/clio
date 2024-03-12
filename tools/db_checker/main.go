@@ -249,10 +249,13 @@ func LoadStatesFromCursors(cluster *gocql.ClusterConfig, ledgerIndex uint64, cur
 }
 
 var (
-	clusterHosts      = kingpin.Arg("hosts", "Your Scylla nodes IP addresses, comma separated (i.e. 192.168.1.1,192.168.1.2,192.168.1.3)").Required().String()
-	earliestLedgerIdx = kingpin.Flag("ledgerIdx", "Sets the earliest ledger_index to keep untouched").Short('i').Required().Uint64()
-	diff              = kingpin.Flag("diff", "Set the diff numbers to be used to loading ledger in parallel").Short('d').Default("16").Uint32()
-	skipTx            = kingpin.Flag("skip-tx", "Whether to skip tx validation").Default("false").Bool()
+	clusterHosts  = kingpin.Arg("hosts", "Your Scylla nodes IP addresses, comma separated (i.e. 192.168.1.1,192.168.1.2,192.168.1.3)").Required().String()
+	fromLedgerIdx = kingpin.Flag("fromLedgerIdx", "Sets the ledger_index to start validation").Short('f').Required().Uint64()
+	toLedgerIdx   = kingpin.Flag("toLedgerIdx", "Sets the ledger_index to end validation").Short('e').Default("0").Uint64()
+	diff          = kingpin.Flag("diff", "Set the diff numbers to be used to loading ledger in parallel").Short('d').Default("16").Uint32()
+	tx            = kingpin.Flag("tx", "Whether to do tx validation").Default("false").Bool()
+	step          = kingpin.Flag("step", "Set the tx numbers to be validated concurrently").Short('s').Default("50").Int()
+	objects       = kingpin.Flag("objects", "Whether to do objects validation").Default("false").Bool()
 
 	clusterTimeout        = kingpin.Flag("timeout", "Maximum duration for query execution in millisecond").Short('t').Default("90000").Int()
 	clusterNumConnections = kingpin.Flag("cluster-number-of-connections", "Number of connections per host per session (in our case, per thread)").Short('b').Default("1").Int()
@@ -266,6 +269,7 @@ var (
 
 func checkingStatesFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, diff uint32) uint64 {
 	ledgerIndex := startLedgerIndex
+	mismatch := uint64(0)
 	for ledgerIndex <= endLedgerIndex {
 		log.Printf("Checking states for ledger %d\n", ledgerIndex)
 
@@ -275,28 +279,45 @@ func checkingStatesFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uin
 		ledgerHashFromHeader, _ := getHashesFromLedgerHeader(cluster, ledgerIndex)
 
 		if ledgerHashFromHeader != ledgerHashFromMap {
-			log.Fatalf("state hash mismatch for ledger %d: %s != %s\n", ledgerIndex, ledgerHashFromMap, ledgerHashFromHeader)
+			mismatch++
+			log.Printf("state hash mismatch for ledger %d: %s != %s\n", ledgerIndex, ledgerHashFromMap, ledgerHashFromHeader)
 		}
 		log.Printf("States hash for ledger %d is correct: %s\n\n", ledgerIndex, ledgerHashFromHeader)
 		ledgerIndex++
 	}
-	return ledgerIndex
+	return mismatch
 }
 
-func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64) {
+func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int) uint64 {
 	ledgerIndex := startLedgerIndex
+	mismatch := uint64(0)
 	for ledgerIndex <= endLedgerIndex {
-		log.Printf("Checking txs for ledger %d\n", ledgerIndex)
 
-		_, txHashStr := getHashesFromLedgerHeader(cluster, ledgerIndex)
-		txHashFromDBStr := getTransactionsFromLedger(cluster, ledgerIndex)
+		thisStep := min(step, int(endLedgerIndex-ledgerIndex+1))
+		var wg sync.WaitGroup
+		wg.Add(thisStep)
 
-		if txHashStr != txHashFromDBStr {
-			log.Fatalf("Tx hash mismatch for ledger %d: %s != %s\n", ledgerIndex, txHashStr, txHashFromDBStr)
+		for i := 0; i < thisStep; i++ {
+			seq := ledgerIndex + uint64(i)
+			go func() {
+				log.Printf("Checking txs for ledger %d\n", seq)
+
+				_, txHashStr := getHashesFromLedgerHeader(cluster, seq)
+				txHashFromDBStr := getTransactionsFromLedger(cluster, seq)
+
+				if txHashStr != txHashFromDBStr {
+					mismatch++
+					log.Printf("Tx hash mismatch for ledger %d: %s != %s\n", seq, txHashStr, txHashFromDBStr)
+				}
+				log.Printf("Tx hash for ledger %d is correct: %s\n\n", seq, txHashStr)
+				wg.Done()
+			}()
 		}
-		log.Printf("Tx hash for ledger %d is correct: %s\n\n", ledgerIndex, txHashStr)
-		ledgerIndex++
+		wg.Wait()
+		ledgerIndex += uint64(thisStep)
 	}
+
+	return mismatch
 }
 
 func main() {
@@ -325,23 +346,39 @@ func main() {
 	}
 	log.Printf("DB ledger seq range: %d, %d\n", earliestLedgerIdxInDB, latestLedgerIdxInDB)
 
-	if earliestLedgerIdxInDB > *earliestLedgerIdx || latestLedgerIdxInDB < *earliestLedgerIdx {
-		log.Fatalf("Requested sequence %d not in the DB range %d-%d\n", *earliestLedgerIdx, earliestLedgerIdxInDB, latestLedgerIdxInDB)
+	if *toLedgerIdx == 0 {
+		*toLedgerIdx = latestLedgerIdxInDB
 	}
 
-	log.Printf("checking from range: %d to %d\n", *earliestLedgerIdx, latestLedgerIdxInDB)
+	if *fromLedgerIdx > *toLedgerIdx {
+		log.Fatalf("Invalid range: fromLedgerIdx %d > toLedgerIdx %d\n", *fromLedgerIdx, *toLedgerIdx)
+	}
+
+	if earliestLedgerIdxInDB > *fromLedgerIdx || latestLedgerIdxInDB < *fromLedgerIdx {
+		log.Fatalf("Requested sequence %d not in the DB range %d-%d\n", *fromLedgerIdx, earliestLedgerIdxInDB, latestLedgerIdxInDB)
+	}
+
+	if earliestLedgerIdxInDB > *toLedgerIdx || latestLedgerIdxInDB < *toLedgerIdx {
+		log.Fatalf("Requested sequence %d not in the DB range %d-%d\n", *fromLedgerIdx, earliestLedgerIdxInDB, latestLedgerIdxInDB)
+	}
 
 	//start checking from ledgerIndex, stop when the process ends
-	lastCheckSeq := make(chan uint64)
-	go func() {
-		seq := checkingStatesFromLedger(cluster, *earliestLedgerIdx, latestLedgerIdxInDB, *diff)
-		lastCheckSeq <- seq
-	}()
+	mismatchCh := make(chan uint64)
 
-	if !*skipTx {
-		go checkingTransactionsFromLedger(cluster, *earliestLedgerIdx, latestLedgerIdxInDB)
+	if *objects {
+		go func() {
+			log.Printf("Checking objects from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
+			seq := checkingStatesFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *diff)
+			mismatchCh <- seq
+		}()
+	} else if *tx {
+		go func() {
+			log.Printf("Checking tx from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
+			mismatch := checkingTransactionsFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *step)
+			mismatchCh <- mismatch
+		}()
 	}
 
-	lastStatesSeq := <-lastCheckSeq
-	log.Println("Finish check from %d to %d, all states and txs are correct", *earliestLedgerIdx, lastStatesSeq)
+	mismatch := <-mismatchCh
+	log.Printf("Finish check from %d to %d : mismatches %d", *toLedgerIdx, *fromLedgerIdx, mismatch)
 }

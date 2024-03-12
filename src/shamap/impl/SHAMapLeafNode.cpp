@@ -17,9 +17,10 @@
 */
 //==============================================================================
 
+#include "shamap/SHAMapLeafNode.h"
+
 #include <ripple/basics/contract.h>
 #include <ripple/beast/core/LexicalCast.h>
-#include <shamap/SHAMapLeafNode.h>
 
 namespace ripple {
 

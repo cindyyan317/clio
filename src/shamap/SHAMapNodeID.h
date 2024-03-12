@@ -22,6 +22,7 @@
 
 #include <ripple/basics/CountedObject.h>
 #include <ripple/basics/base_uint.h>
+
 #include <optional>
 #include <ostream>
 #include <string>
@@ -30,8 +31,7 @@
 namespace ripple {
 
 /** Identifies a node inside a SHAMap */
-class SHAMapNodeID : public CountedObject<SHAMapNodeID>
-{
+class SHAMapNodeID : public CountedObject<SHAMapNodeID> {
 private:
     uint256 id_;
     unsigned int depth_ = 0;
@@ -125,8 +125,7 @@ to_string(SHAMapNodeID const& node)
     if (node.isRoot())
         return "NodeID(root)";
 
-    return "NodeID(" + std::to_string(node.getDepth()) + "," +
-        to_string(node.getNodeID()) + ")";
+    return "NodeID(" + std::to_string(node.getDepth()) + "," + to_string(node.getNodeID()) + ")";
 }
 
 inline std::ostream&

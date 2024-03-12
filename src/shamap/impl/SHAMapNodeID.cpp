@@ -17,11 +17,13 @@
 */
 //==============================================================================
 
+#include "shamap/SHAMapNodeID.h"
+
+#include "shamap/SHAMap.h"
+
 #include <ripple/beast/core/LexicalCast.h>
 #include <ripple/crypto/csprng.h>
 #include <ripple/protocol/Serializer.h>
-#include <shamap/SHAMap.h>
-#include <shamap/SHAMapNodeID.h>
 
 #include <cassert>
 

@@ -20,11 +20,10 @@
 #ifndef RIPPLE_BASICS_SLABALLOCATOR_H_INCLUDED
 #define RIPPLE_BASICS_SLABALLOCATOR_H_INCLUDED
 
-#include <ripple/beast/type_name.h>
-
 #include <boost/align.hpp>
 #include <boost/container/static_vector.hpp>
 #include <boost/predef.h>
+#include <ripple/beast/type_name.h>
 
 #include <algorithm>
 #include <atomic>
@@ -40,17 +39,16 @@
 namespace ripple {
 
 template <typename Type>
-class SlabAllocator
-{
+class SlabAllocator {
     static_assert(
         sizeof(Type) >= sizeof(std::uint8_t*),
-        "SlabAllocator: the requested object must be larger than a pointer.");
+        "SlabAllocator: the requested object must be larger than a pointer."
+    );
 
     static_assert(alignof(Type) == 8 || alignof(Type) == 4);
 
     /** A block of memory that is owned by a slab allocator */
-    struct SlabBlock
-    {
+    struct SlabBlock {
         // A mutex to protect the freelist for this block:
         std::mutex m_;
 
@@ -66,18 +64,13 @@ class SlabAllocator
         // The extent of the underlying memory block:
         std::size_t const size_;
 
-        SlabBlock(
-            SlabBlock* next,
-            std::uint8_t* data,
-            std::size_t size,
-            std::size_t item)
+        SlabBlock(SlabBlock* next, std::uint8_t* data, std::size_t size, std::size_t item)
             : next_(next), p_(data), size_(size)
         {
             // We don't need to grab the mutex here, since we're the only
             // ones with access at this moment.
 
-            while (data + item <= p_ + size_)
-            {
+            while (data + item <= p_ + size_) {
                 // Use memcpy to avoid unaligned UB
                 // (will optimize to equivalent code)
                 std::memcpy(data, &l_, sizeof(std::uint8_t*));
@@ -118,8 +111,7 @@ class SlabAllocator
 
                 ret = l_;
 
-                if (ret)
-                {
+                if (ret) {
                     // Use memcpy to avoid unaligned UB
                     // (will optimize to equivalent code)
                     std::memcpy(&l_, ret, sizeof(std::uint8_t*));
@@ -175,13 +167,9 @@ public:
                      contexts (e.g. when mimimal memory usage is needed) and
                      allows for graceful failure.
      */
-    constexpr explicit SlabAllocator(
-        std::size_t extra,
-        std::size_t alloc = 0,
-        std::size_t align = 0)
+    constexpr explicit SlabAllocator(std::size_t extra, std::size_t alloc = 0, std::size_t align = 0)
         : itemAlignment_(align ? align : alignof(Type))
-        , itemSize_(
-              boost::alignment::align_up(sizeof(Type) + extra, itemAlignment_))
+        , itemSize_(boost::alignment::align_up(sizeof(Type) + extra, itemAlignment_))
         , slabSize_(alloc)
     {
         assert((itemAlignment_ & (itemAlignment_ - 1)) == 0);
@@ -219,8 +207,7 @@ public:
     {
         auto slab = slabs_.load();
 
-        while (slab != nullptr)
-        {
+        while (slab != nullptr) {
             if (auto ret = slab->allocate())
                 return ret;
 
@@ -233,8 +220,7 @@ public:
 
         // We want to allocate the memory at a 2 MiB boundary, to make it
         // possible to use hugepage mappings on Linux:
-        auto buf =
-            boost::alignment::aligned_alloc(megabytes(std::size_t(2)), size);
+        auto buf = boost::alignment::aligned_alloc(megabytes(std::size_t(2)), size);
 
         // clang-format off
         if (!buf) [[unlikely]]
@@ -252,32 +238,20 @@ public:
 
         // We need to carve out a bit of memory for the slab header
         // and then align the rest appropriately:
-        auto slabData = reinterpret_cast<void*>(
-            reinterpret_cast<std::uint8_t*>(buf) + sizeof(SlabBlock));
+        auto slabData = reinterpret_cast<void*>(reinterpret_cast<std::uint8_t*>(buf) + sizeof(SlabBlock));
         auto slabSize = size - sizeof(SlabBlock);
 
         // This operation is essentially guaranteed not to fail but
         // let's be careful anyways.
-        if (!boost::alignment::align(
-                itemAlignment_, itemSize_, slabData, slabSize))
-        {
+        if (!boost::alignment::align(itemAlignment_, itemSize_, slabData, slabSize)) {
             boost::alignment::aligned_free(buf);
             return nullptr;
         }
 
-        slab = new (buf) SlabBlock(
-            slabs_.load(),
-            reinterpret_cast<std::uint8_t*>(slabData),
-            slabSize,
-            itemSize_);
+        slab = new (buf) SlabBlock(slabs_.load(), reinterpret_cast<std::uint8_t*>(slabData), slabSize, itemSize_);
 
         // Link the new slab
-        while (!slabs_.compare_exchange_weak(
-            slab->next_,
-            slab,
-            std::memory_order_release,
-            std::memory_order_relaxed))
-        {
+        while (!slabs_.compare_exchange_weak(slab->next_, slab, std::memory_order_release, std::memory_order_relaxed)) {
             ;  // Nothing to do
         }
 
@@ -296,10 +270,8 @@ public:
     {
         assert(ptr);
 
-        for (auto slab = slabs_.load(); slab != nullptr; slab = slab->next_)
-        {
-            if (slab->own(ptr))
-            {
+        for (auto slab = slabs_.load(); slab != nullptr; slab = slab->next_) {
+            if (slab->own(ptr)) {
                 slab->deallocate(ptr);
                 return true;
             }
@@ -311,8 +283,7 @@ public:
 
 /** A collection of slab allocators of various sizes for a given type. */
 template <typename Type>
-class SlabAllocatorSet
-{
+class SlabAllocatorSet {
 private:
     // The list of allocators that belong to this set
     boost::container::static_vector<SlabAllocator<Type>, 64> allocators_;
@@ -320,8 +291,7 @@ private:
     std::size_t maxSize_ = 0;
 
 public:
-    class SlabConfig
-    {
+    class SlabConfig {
         friend class SlabAllocatorSet;
 
     private:
@@ -330,10 +300,7 @@ public:
         std::size_t align;
 
     public:
-        constexpr SlabConfig(
-            std::size_t extra_,
-            std::size_t alloc_ = 0,
-            std::size_t align_ = alignof(Type))
+        constexpr SlabConfig(std::size_t extra_, std::size_t alloc_ = 0, std::size_t align_ = alignof(Type))
             : extra(extra_), alloc(alloc_), align(align_)
         {
         }
@@ -343,28 +310,18 @@ public:
     {
         // Ensure that the specified allocators are sorted from smallest to
         // largest by size:
-        std::sort(
-            std::begin(cfg),
-            std::end(cfg),
-            [](SlabConfig const& a, SlabConfig const& b) {
-                return a.extra < b.extra;
-            });
+        std::sort(std::begin(cfg), std::end(cfg), [](SlabConfig const& a, SlabConfig const& b) {
+            return a.extra < b.extra;
+        });
 
         // We should never have two slabs of the same size
-        if (std::adjacent_find(
-                std::begin(cfg),
-                std::end(cfg),
-                [](SlabConfig const& a, SlabConfig const& b) {
-                    return a.extra == b.extra;
-                }) != cfg.end())
-        {
-            throw std::runtime_error(
-                "SlabAllocatorSet<" + beast::type_name<Type>() +
-                ">: duplicate slab size");
+        if (std::adjacent_find(std::begin(cfg), std::end(cfg), [](SlabConfig const& a, SlabConfig const& b) {
+                return a.extra == b.extra;
+            }) != cfg.end()) {
+            throw std::runtime_error("SlabAllocatorSet<" + beast::type_name<Type>() + ">: duplicate slab size");
         }
 
-        for (auto const& c : cfg)
-        {
+        for (auto const& c : cfg) {
             auto& a = allocators_.emplace_back(c.extra, c.alloc, c.align);
 
             if (a.size() > maxSize_)
@@ -395,10 +352,8 @@ public:
     std::uint8_t*
     allocate(std::size_t extra) noexcept
     {
-        if (auto const size = sizeof(Type) + extra; size <= maxSize_)
-        {
-            for (auto& a : allocators_)
-            {
+        if (auto const size = sizeof(Type) + extra; size <= maxSize_) {
+            for (auto& a : allocators_) {
                 if (a.size() >= size)
                     return a.allocate();
             }
@@ -417,8 +372,7 @@ public:
     bool
     deallocate(std::uint8_t* ptr) noexcept
     {
-        for (auto& a : allocators_)
-        {
+        for (auto& a : allocators_) {
             if (a.deallocate(ptr))
                 return true;
         }

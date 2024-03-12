@@ -20,11 +20,12 @@
 #ifndef RIPPLE_SHAMAP_SHAMAPTREENODE_H_INCLUDED
 #define RIPPLE_SHAMAP_SHAMAPTREENODE_H_INCLUDED
 
+#include "shamap/SHAMapNodeID.h"
+
 #include <ripple/basics/CountedObject.h>
 #include <ripple/basics/SHAMapHash.h>
 #include <ripple/beast/utility/Journal.h>
 #include <ripple/protocol/Serializer.h>
-#include <shamap/SHAMapNodeID.h>
 
 #include <cstdint>
 #include <memory>
