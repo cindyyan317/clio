@@ -85,7 +85,7 @@ macro (cgo_fetch_cflags_and_ldflags)
     CGO_LDFLAGS
     "-L."
     "-L${CMAKE_BINARY_DIR}"
-    "-lshamap"
+    "-lSHAMap"
     "-lxrpl_core"
     "-led25519"
     "-lsecp256k1"
