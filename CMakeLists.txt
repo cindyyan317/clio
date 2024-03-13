@@ -85,7 +85,7 @@ if (san)
   target_link_libraries(clio INTERFACE ${SAN_FLAG} ${SAN_LIB})
 endif ()
 
-include(CMake/SHAMap.cmake)
+include(cmake/SHAMap.cmake)
 
 # Generate `docs` target for doxygen documentation if enabled Note: use `make docs` to generate the documentation
 if (docs)
@@ -98,5 +98,5 @@ if (packaging)
 endif ()
 
 # build go tools
-include(CMake/CGo.cmake)
+include(cmake/CGo.cmake)
 add_subdirectory(tools/db_checker)

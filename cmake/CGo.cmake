@@ -92,6 +92,7 @@ macro (cgo_fetch_cflags_and_ldflags)
     "-lssl"
     "-lboost_thread"
     "-lcrypto"
+    "-ldl"
   )
   list(APPEND CGO_CXXFLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/../../src" "-I${CMAKE_CURRENT_SOURCE_DIR}" "-I." "-std=c++20")
 
