@@ -149,6 +149,7 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 		if err != nil {
 			log.Printf("Error: Transactions reading %x", hash)
 			log.Println(err)
+			continue
 		}
 		txMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
 	}
