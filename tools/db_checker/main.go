@@ -133,7 +133,7 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 		)
 		err = scanner.Scan(&hash)
 		if err != nil {
-			log.Printf("ledger_transactions reading error %d", ledgerIndex)
+			log.Printf("Error: ledger_transactions reading %d", ledgerIndex)
 			log.Println(err)
 		}
 		hashes = append(hashes, hash)
@@ -147,7 +147,7 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 		err = session.Query(`select transaction,metadata from transactions where hash = ?`,
 			hash).Scan(&tx, &metadata)
 		if err != nil {
-			log.Printf("Transactions reading error %x", hash)
+			log.Printf("Error: Transactions reading %x", hash)
 			log.Println(err)
 		}
 		txMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
@@ -310,7 +310,7 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 
 				if txHashStr != txHashFromDBStr {
 					mismatch++
-					log.Printf("Tx hash mismatch for ledger %d: %s != %s\n", seq, txHashStr, txHashFromDBStr)
+					log.Printf("Error: Tx hash mismatch for ledger %d: %s != %s\n", seq, txHashStr, txHashFromDBStr)
 				}
 				log.Printf("Tx hash for ledger %d is correct: %s\n\n", seq, txHashStr)
 				wg.Done()
