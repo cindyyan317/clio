@@ -304,8 +304,6 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 		for i := 0; i < thisStep; i++ {
 			seq := ledgerIndex + uint64(i)
 			go func() {
-				log.Printf("Checking txs for ledger %d\n", seq)
-
 				_, txHashStr := getHashesFromLedgerHeader(cluster, seq)
 				txHashFromDBStr := getTransactionsFromLedger(cluster, seq)
 
