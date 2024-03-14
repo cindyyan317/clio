@@ -310,8 +310,9 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 				if txHashStr != txHashFromDBStr {
 					mismatch++
 					log.Printf("Error: Tx hash mismatch for ledger %d: %s != %s\n", seq, txHashStr, txHashFromDBStr)
+				} else {
+					log.Printf("Tx hash for ledger %d is correct: %s\n\n", seq, txHashStr)
 				}
-				log.Printf("Tx hash for ledger %d is correct: %s\n\n", seq, txHashStr)
 				wg.Done()
 			}()
 		}
