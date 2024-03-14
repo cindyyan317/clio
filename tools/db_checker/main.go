@@ -113,6 +113,12 @@ func getHashesFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 	err = session.Query("select header from ledgers where sequence = ?",
 		ledgerIndex).Scan(&header)
 
+	if err != nil {
+		log.Printf("Error: ledgers reading %d", ledgerIndex)
+		log.Println(err)
+		return "", ""
+	}
+
 	txHash := utils.GetTxHashFromLedgerHeader(string(header[:]), uint32(len(header)))
 	stateHash := utils.GetStatesHashFromLedgerHeader(string(header[:]), uint32(len(header)))
 	return stateHash, txHash
@@ -293,16 +299,16 @@ func checkingStatesFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uin
 }
 
 func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int) uint64 {
-	ledgerIndex := startLedgerIndex
+	ledgerIndex := endLedgerIndex
 	mismatch := uint64(0)
-	for ledgerIndex <= endLedgerIndex {
+	for ledgerIndex >= startLedgerIndex {
 
-		thisStep := min(step, int(endLedgerIndex-ledgerIndex+1))
+		thisStep := min(step, int(ledgerIndex-startLedgerIndex+1))
 		var wg sync.WaitGroup
 		wg.Add(thisStep)
 
 		for i := 0; i < thisStep; i++ {
-			seq := ledgerIndex + uint64(i)
+			seq := ledgerIndex - uint64(i)
 			go func() {
 				_, txHashStr := getHashesFromLedgerHeader(cluster, seq)
 				txHashFromDBStr := getTransactionsFromLedger(cluster, seq)
@@ -317,7 +323,7 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 			}()
 		}
 		wg.Wait()
-		ledgerIndex += uint64(thisStep)
+		ledgerIndex -= uint64(thisStep)
 	}
 
 	return mismatch
