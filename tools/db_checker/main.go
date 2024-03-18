@@ -145,8 +145,11 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64,
 		hashes = append(hashes, hash)
 	}
 
-	txMap := shamap.MakeSHAMapTxMeta()
-
+	var ptrTxMap *shamap.GoSHAMap
+	if !skipSha {
+		txMap := shamap.MakeSHAMapTxMeta()
+		ptrTxMap = &txMap
+	}
 	for _, hash := range hashes {
 		var tx []byte
 		var metadata []byte
@@ -158,14 +161,14 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64,
 			continue
 		}
 		if !skipSha {
-			txMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
+			ptrTxMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
 		}
 	}
 	hashFromMap := ""
 	if !skipSha {
-		hashFromMap = txMap.GetHash()
+		hashFromMap = ptrTxMap.GetHash()
+		ptrTxMap.Free()
 	}
-	txMap.Free()
 	return hashFromMap
 }
 
@@ -267,11 +270,15 @@ var (
 	clusterHosts  = kingpin.Arg("hosts", "Your Scylla nodes IP addresses, comma separated (i.e. 192.168.1.1,192.168.1.2,192.168.1.3)").Required().String()
 	fromLedgerIdx = kingpin.Flag("fromLedgerIdx", "Sets the ledger_index to start validation").Short('f').Required().Uint64()
 	toLedgerIdx   = kingpin.Flag("toLedgerIdx", "Sets the ledger_index to end validation").Short('e').Default("0").Uint64()
-	diff          = kingpin.Flag("diff", "Set the diff numbers to be used to loading ledger in parallel").Short('d').Default("16").Uint32()
-	tx            = kingpin.Flag("tx", "Whether to do tx validation").Default("false").Bool()
-	txSkipSha     = kingpin.Flag("txSkipSha", "Whether to skip SHA hash for tx validation").Default("false").Bool()
-	step          = kingpin.Flag("step", "Set the tx numbers to be validated concurrently").Short('s').Default("50").Int()
-	objects       = kingpin.Flag("objects", "Whether to do objects validation").Default("false").Bool()
+	//transactions table
+	tx        = kingpin.Flag("tx", "Whether to do tx validation").Default("false").Bool()
+	txSkipSha = kingpin.Flag("txSkipSha", "Whether to skip SHA hash for tx validation").Default("false").Bool()
+	step      = kingpin.Flag("step", "Set the tx numbers to be validated concurrently").Short('s').Default("50").Int()
+	//objects + successor
+	diff    = kingpin.Flag("diff", "Set the diff numbers to be used to loading ledger in parallel").Short('d').Default("16").Uint32()
+	objects = kingpin.Flag("objects", "Whether to do objects validation").Default("false").Bool()
+	//ledger_hash table
+	ledgerHash = kingpin.Flag("ledgerHash", "Whether to do ledger_hash table validation").Default("false").Bool()
 
 	clusterTimeout        = kingpin.Flag("timeout", "Maximum duration for query execution in millisecond").Short('t').Default("90000").Int()
 	clusterNumConnections = kingpin.Flag("cluster-number-of-connections", "Number of connections per host per session (in our case, per thread)").Short('b').Default("1").Int()
@@ -396,6 +403,9 @@ func main() {
 			mismatch := checkingTransactionsFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *step, *txSkipSha)
 			mismatchCh <- mismatch
 		}()
+	} else if *ledgerHash {
+		log.Printf("Checking ledger hash from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
+
 	}
 
 	mismatch := <-mismatchCh
