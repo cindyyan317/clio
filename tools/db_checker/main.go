@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -122,6 +123,49 @@ func getHashesFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 	txHash := utils.GetTxHashFromLedgerHeader(string(header[:]), uint32(len(header)))
 	stateHash := utils.GetStatesHashFromLedgerHeader(string(header[:]), uint32(len(header)))
 	return stateHash, txHash
+}
+
+func getLedgerHashFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uint64) string {
+	session, err := cluster.CreateSession()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer session.Close()
+
+	var header []byte
+	err = session.Query("select header from ledgers where sequence = ?",
+		ledgerIndex).Scan(&header)
+
+	if err != nil {
+		log.Printf("Error: ledgers reading %d", ledgerIndex)
+		log.Println(err)
+		return ""
+	}
+	ledgerHash := utils.GetLedgerHashFromLedgerHeader(string(header[:]), uint32(len(header)))
+	return ledgerHash
+}
+
+func getSeqFromLedgerHash(cluster *gocql.ClusterConfig, ledgerHash string, seq uint64) uint64 {
+	session, err := cluster.CreateSession()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer session.Close()
+
+	var header uint64
+	hash, _ := hex.DecodeString(ledgerHash)
+	err = session.Query("select sequence from ledger_hashes where hash = ?",
+		hash).Scan(&header)
+
+	if err != nil {
+		log.Printf("Error: Ledger hash reading %x : %d", hash, seq)
+		log.Println(err)
+		return 0
+	}
+
+	return header
 }
 
 func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64, skipSha bool) string {
@@ -346,6 +390,36 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 	return mismatch
 }
 
+func checkingLedgerHash(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int) uint64 {
+	ledgerIndex := endLedgerIndex
+	mismatch := uint64(0)
+	for ledgerIndex >= startLedgerIndex {
+
+		thisStep := min(step, int(ledgerIndex-startLedgerIndex+1))
+		var wg sync.WaitGroup
+		wg.Add(thisStep)
+
+		for i := 0; i < thisStep; i++ {
+			seq := ledgerIndex - uint64(i)
+			go func() {
+				ledgerHashStr := getLedgerHashFromLedgerHeader(cluster, seq)
+				seqFromTable := getSeqFromLedgerHash(cluster, ledgerHashStr, seq)
+				if seqFromTable != seq {
+					mismatch++
+					log.Printf("Error: Ledger hash mismatch for ledger %d: %s\n", seq, ledgerHashStr)
+				} else {
+					log.Printf("Ledger hash for ledger %d is correct: %s\n", seq, ledgerHashStr)
+				}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+		ledgerIndex -= uint64(thisStep)
+	}
+
+	return mismatch
+}
+
 func main() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -405,6 +479,8 @@ func main() {
 		}()
 	} else if *ledgerHash {
 		log.Printf("Checking ledger hash from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
+		mismatch := checkingLedgerHash(cluster, *fromLedgerIdx, *toLedgerIdx, *step)
+		mismatchCh <- mismatch
 
 	}
 

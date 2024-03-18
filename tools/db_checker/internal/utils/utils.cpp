@@ -19,3 +19,12 @@ GetTxHashFromLedgerHeader(char* ledgerHeaderBlob, int size, char* hash)
     ripple::uint256 h = info.txHash;
     std::memcpy(hash, h.data(), ripple::uint256::size());
 }
+
+void
+GetLedgerHashFromLedgerHeader(char* ledgerHeaderBlob, int size, char* hash)
+{
+    ripple::Slice slice{ledgerHeaderBlob, (size_t)size};
+    ripple::LedgerHeader info = ripple::deserializeHeader(slice, true);
+    ripple::uint256 h = info.hash;
+    std::memcpy(hash, h.data(), ripple::uint256::size());
+}
