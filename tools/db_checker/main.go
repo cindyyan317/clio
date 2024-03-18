@@ -323,10 +323,10 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 		for i := 0; i < thisStep; i++ {
 			seq := ledgerIndex - uint64(i)
 			go func() {
-				_, txHashStr := getHashesFromLedgerHeader(cluster, seq)
 				txHashFromDBStr := getTransactionsFromLedger(cluster, seq, skipSHA)
 
 				if !skipSHA {
+					_, txHashStr := getHashesFromLedgerHeader(cluster, seq)
 					if txHashStr != txHashFromDBStr {
 						mismatch++
 						log.Printf("Error: Tx hash mismatch for ledger %d: %s != %s\n", seq, txHashStr, txHashFromDBStr)
