@@ -124,7 +124,7 @@ func getHashesFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 	return stateHash, txHash
 }
 
-func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64) string {
+func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64, skipSha bool) string {
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Fatal(err)
@@ -157,9 +157,14 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 			log.Println(err)
 			continue
 		}
-		txMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
+		if !skipSha {
+			txMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
+		}
 	}
-	hashFromMap := txMap.GetHash()
+	hashFromMap := ""
+	if !skipSha {
+		hashFromMap = txMap.GetHash()
+	}
 	txMap.Free()
 	return hashFromMap
 }
@@ -264,6 +269,7 @@ var (
 	toLedgerIdx   = kingpin.Flag("toLedgerIdx", "Sets the ledger_index to end validation").Short('e').Default("0").Uint64()
 	diff          = kingpin.Flag("diff", "Set the diff numbers to be used to loading ledger in parallel").Short('d').Default("16").Uint32()
 	tx            = kingpin.Flag("tx", "Whether to do tx validation").Default("false").Bool()
+	txSkipSha     = kingpin.Flag("txSkipSha", "Whether to skip SHA hash for tx validation").Default("false").Bool()
 	step          = kingpin.Flag("step", "Set the tx numbers to be validated concurrently").Short('s').Default("50").Int()
 	objects       = kingpin.Flag("objects", "Whether to do objects validation").Default("false").Bool()
 
@@ -298,7 +304,7 @@ func checkingStatesFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uin
 	return mismatch
 }
 
-func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int) uint64 {
+func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int, skipSHA bool) uint64 {
 	ledgerIndex := endLedgerIndex
 	mismatch := uint64(0)
 	for ledgerIndex >= startLedgerIndex {
@@ -311,13 +317,17 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 			seq := ledgerIndex - uint64(i)
 			go func() {
 				_, txHashStr := getHashesFromLedgerHeader(cluster, seq)
-				txHashFromDBStr := getTransactionsFromLedger(cluster, seq)
+				txHashFromDBStr := getTransactionsFromLedger(cluster, seq, skipSHA)
 
-				if txHashStr != txHashFromDBStr {
-					mismatch++
-					log.Printf("Error: Tx hash mismatch for ledger %d: %s != %s\n", seq, txHashStr, txHashFromDBStr)
+				if !skipSHA {
+					if txHashStr != txHashFromDBStr {
+						mismatch++
+						log.Printf("Error: Tx hash mismatch for ledger %d: %s != %s\n", seq, txHashStr, txHashFromDBStr)
+					} else {
+						log.Printf("Tx hash for ledger %d is correct: %s\n\n", seq, txHashStr)
+					}
 				} else {
-					log.Printf("Tx hash for ledger %d is correct: %s\n\n", seq, txHashStr)
+					log.Printf("Finish checking tx existence for ledger %d\n", seq)
 				}
 				wg.Done()
 			}()
@@ -383,7 +393,7 @@ func main() {
 	} else if *tx {
 		go func() {
 			log.Printf("Checking tx from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
-			mismatch := checkingTransactionsFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *step)
+			mismatch := checkingTransactionsFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *step, *txSkipSha)
 			mismatchCh <- mismatch
 		}()
 	}
