@@ -3,6 +3,7 @@ import json
 import asyncio
 from websockets.sync.client import connect
 import subprocess
+import sys
 
 def get_ledger(seq):
     with connect(f"wss://xrplcluster.com") as websocket:
@@ -17,11 +18,15 @@ db_pass = ""
 
 #from grep " Error: Ledger hash reading" log_hash| awk '{print "\""$10"\","}'
 def main():
-    seqs = [
-        78893764,
-    ]
-
-    for seq in seqs:
+    
+    # read from pipe
+    while True:
+        line = sys.stdin.readline()
+        if not 'Error: Ledger hash reading' in line:
+            continue
+        tt = line.split()
+        print("received: ", line,tt[-1])
+        seq = int(tt[-1])
         ledger_json = get_ledger(seq)
         json_data = json.loads(ledger_json)
         if 'result' not in json_data or 'status' not in json_data or json_data['status'] != "success":
