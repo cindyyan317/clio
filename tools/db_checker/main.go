@@ -139,8 +139,7 @@ func getLedgerHashFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uin
 
 	if err != nil {
 		log.Printf("Error: ledgers reading %d", ledgerIndex)
-		log.Println(err)
-		return ""
+		log.Fatal(err) // the ledger header MUST be present for the ledger
 	}
 	ledgerHash := utils.GetLedgerHashFromLedgerHeader(string(header[:]), uint32(len(header)))
 	return ledgerHash
@@ -155,6 +154,7 @@ func getSeqFromLedgerHash(cluster *gocql.ClusterConfig, ledgerHash string, seq u
 	defer session.Close()
 
 	var header uint64
+	header = 0
 	hash, _ := hex.DecodeString(ledgerHash)
 	err = session.Query("select sequence from ledger_hashes where hash = ?",
 		hash).Scan(&header)
@@ -162,7 +162,17 @@ func getSeqFromLedgerHash(cluster *gocql.ClusterConfig, ledgerHash string, seq u
 	if err != nil {
 		log.Printf("Error: Ledger hash reading %x : %d", hash, seq)
 		log.Println(err)
-		return 0
+		if *ledgerHashFix {
+			err = session.Query("insert into ledger_hashes (hash, sequence) values (?, ?)", hash, header).Exec()
+			if err != nil {
+				log.Printf("Error: Ledger hash insert %x : %d", hash, seq)
+			}
+			session.Query("select sequence from ledger_hashes where hash = ?",
+				hash).Scan(&header)
+			if header == seq {
+				log.Printf("Success: Ledger hash fixed %x : %d", hash, seq)
+			}
+		}
 	}
 
 	return header
@@ -194,9 +204,9 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64,
 		txMap := shamap.MakeSHAMapTxMeta()
 		ptrTxMap = &txMap
 	}
+	var tx []byte
+	var metadata []byte
 	for _, hash := range hashes {
-		var tx []byte
-		var metadata []byte
 		err = session.Query(`select transaction,metadata from transactions where hash = ?`,
 			hash).Scan(&tx, &metadata)
 		if err != nil {
@@ -322,7 +332,8 @@ var (
 	diff    = kingpin.Flag("diff", "Set the diff numbers to be used to loading ledger in parallel").Short('d').Default("16").Uint32()
 	objects = kingpin.Flag("objects", "Whether to do objects validation").Default("false").Bool()
 	//ledger_hash table
-	ledgerHash = kingpin.Flag("ledgerHash", "Whether to do ledger_hash table validation").Default("false").Bool()
+	ledgerHash    = kingpin.Flag("ledgerHash", "Whether to do ledger_hash table validation").Default("false").Bool()
+	ledgerHashFix = kingpin.Flag("ledgerHashFix", "Whether to do ledger_hash table validation and fix it in place").Default("false").Bool()
 
 	clusterTimeout        = kingpin.Flag("timeout", "Maximum duration for query execution in millisecond").Short('t').Default("90000").Int()
 	clusterNumConnections = kingpin.Flag("cluster-number-of-connections", "Number of connections per host per session (in our case, per thread)").Short('b').Default("1").Int()
@@ -477,7 +488,7 @@ func main() {
 			mismatch := checkingTransactionsFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *step, *txSkipSha)
 			mismatchCh <- mismatch
 		}()
-	} else if *ledgerHash {
+	} else if *ledgerHash || *ledgerHashFix {
 		log.Printf("Checking ledger hash from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
 		mismatch := checkingLedgerHash(cluster, *fromLedgerIdx, *toLedgerIdx, *step)
 		mismatchCh <- mismatch
