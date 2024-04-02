@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -429,6 +430,8 @@ func checkingLedgerHash(cluster *gocql.ClusterConfig, startLedgerIndex uint64, e
 		wg.Wait()
 		ledgerIndex -= uint64(thisStep)
 	}
+
+	runtime.GC()
 	return mismatch
 }
 
