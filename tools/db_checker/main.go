@@ -166,6 +166,7 @@ func getSeqFromLedgerHash(cluster *gocql.ClusterConfig, ledgerHash string, seq u
 			if err != nil {
 				log.Printf("Error: Ledger hash insert %x : %d, %v", hash, seq, err)
 			}
+			// double confirm if the insert is successful
 			session.Query("select sequence from ledger_hashes where hash = ?",
 				hash).Scan(&header)
 			if header == seq {
@@ -459,6 +460,10 @@ func main() {
 
 	if *toLedgerIdx == 0 {
 		*toLedgerIdx = latestLedgerIdxInDB
+	}
+
+	if *fromLedgerIdx == 0 {
+		*fromLedgerIdx = earliestLedgerIdxInDB
 	}
 
 	if *fromLedgerIdx > *toLedgerIdx {
