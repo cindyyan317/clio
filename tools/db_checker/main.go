@@ -160,17 +160,18 @@ func getSeqFromLedgerHash(cluster *gocql.ClusterConfig, ledgerHash string, seq u
 		hash).Scan(&header)
 
 	if err != nil {
-		log.Printf("Error: Ledger hash reading %x : %d", hash, seq)
-		log.Println(err)
+		log.Printf("Error: Ledger hash reading %x : %d, %v", hash, seq, err)
 		if *ledgerHashFix {
-			err = session.Query("insert into ledger_hashes (hash, sequence) values (?, ?)", hash, header).Exec()
+			err = session.Query("insert into ledger_hashes (hash, sequence) values (?, ?)", hash, seq).Exec()
 			if err != nil {
-				log.Printf("Error: Ledger hash insert %x : %d", hash, seq)
+				log.Printf("Error: Ledger hash insert %x : %d, %v", hash, seq, err)
 			}
 			session.Query("select sequence from ledger_hashes where hash = ?",
 				hash).Scan(&header)
 			if header == seq {
 				log.Printf("Success: Ledger hash fixed %x : %d", hash, seq)
+			} else {
+				log.Printf("Failed: Ledger hash fixed %x : %d", hash, seq)
 			}
 		}
 	}
@@ -427,7 +428,6 @@ func checkingLedgerHash(cluster *gocql.ClusterConfig, startLedgerIndex uint64, e
 		wg.Wait()
 		ledgerIndex -= uint64(thisStep)
 	}
-
 	return mismatch
 }
 
@@ -489,10 +489,11 @@ func main() {
 			mismatchCh <- mismatch
 		}()
 	} else if *ledgerHash || *ledgerHashFix {
-		log.Printf("Checking ledger hash from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
-		mismatch := checkingLedgerHash(cluster, *fromLedgerIdx, *toLedgerIdx, *step)
-		mismatchCh <- mismatch
-
+		go func() {
+			log.Printf("Checking ledger hash from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
+			mismatch := checkingLedgerHash(cluster, *fromLedgerIdx, *toLedgerIdx, *step)
+			mismatchCh <- mismatch
+		}()
 	}
 
 	mismatch := <-mismatchCh
