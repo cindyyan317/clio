@@ -428,10 +428,9 @@ func checkingLedgerHash(cluster *gocql.ClusterConfig, startLedgerIndex uint64, e
 			}()
 		}
 		wg.Wait()
+		runtime.GC()
 		ledgerIndex -= uint64(thisStep)
 	}
-
-	runtime.GC()
 	return mismatch
 }
 
