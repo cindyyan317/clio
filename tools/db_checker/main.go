@@ -422,8 +422,6 @@ func checkingLedgerHash(cluster *gocql.ClusterConfig, startLedgerIndex uint64, e
 				if seqFromTable != seq {
 					mismatch++
 					log.Printf("Error: Ledger hash mismatch for ledger %d: %s\n", seq, ledgerHashStr)
-				} else {
-					log.Printf("Ledger hash for ledger %d is correct: %s\n", seq, ledgerHashStr)
 				}
 				wg.Done()
 			}()
