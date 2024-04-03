@@ -17,6 +17,10 @@ import (
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/gocql/gocql"
+
+	"net/http"
+	_ "net/http/pprof"
+	//"net/http/pprof"
 )
 
 var CURSOR_START = make([]byte, 32)
@@ -408,6 +412,12 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 func checkingLedgerHash(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int) uint64 {
 	ledgerIndex := endLedgerIndex
 	mismatch := uint64(0)
+	// memProfileFile, err := os.Create("mem.prof")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer memProfileFile.Close()
+
 	for ledgerIndex >= startLedgerIndex {
 
 		thisStep := min(step, int(ledgerIndex-startLedgerIndex+1))
@@ -430,6 +440,10 @@ func checkingLedgerHash(cluster *gocql.ClusterConfig, startLedgerIndex uint64, e
 		runtime.GC()
 		ledgerIndex -= uint64(thisStep)
 	}
+	// Write memory profile to file
+	// if err := pprof.WriteHeapProfile(memProfileFile); err != nil {
+	// 	panic(err)
+	// }
 	return mismatch
 }
 
@@ -478,6 +492,10 @@ func main() {
 	if earliestLedgerIdxInDB > *toLedgerIdx || latestLedgerIdxInDB < *toLedgerIdx {
 		log.Fatalf("Requested sequence %d not in the DB range %d-%d\n", *fromLedgerIdx, earliestLedgerIdxInDB, latestLedgerIdxInDB)
 	}
+
+	go func() {
+		http.ListenAndServe("localhost:8080", nil)
+	}()
 
 	//start checking from ledgerIndex, stop when the process ends
 	mismatchCh := make(chan uint64)
