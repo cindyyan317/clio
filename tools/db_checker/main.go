@@ -9,10 +9,9 @@ import (
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/gocql/gocql"
-
-	"net/http"
-	_ "net/http/pprof"
-	//"net/http/pprof"
+	//	_ "net/http/pprof"
+	//
+	// "net/http/pprof"
 )
 
 func getLedgerRange(cluster *gocql.ClusterConfig) (uint64, uint64, error) {
@@ -58,7 +57,6 @@ var (
 	clusterTimeout        = kingpin.Flag("timeout", "Maximum duration for query execution in millisecond").Short('t').Default("90000").Int()
 	clusterNumConnections = kingpin.Flag("cluster-number-of-connections", "Number of connections per host per session (in our case, per thread)").Short('b').Default("1").Int()
 	clusterCQLVersion     = kingpin.Flag("cql-version", "The CQL version to use").Short('l').Default("3.0.0").String()
-	clusterPageSize       = kingpin.Flag("cluster-page-size", "Page size of results").Short('p').Default("5000").Int()
 	keyspace              = kingpin.Flag("keyspace", "Keyspace to use").Short('k').Default("clio_fh").String()
 
 	userName = kingpin.Flag("username", "Username to use when connecting to the cluster").String()
@@ -75,7 +73,6 @@ func main() {
 	cluster.Timeout = time.Duration(*clusterTimeout * 1000 * 1000)
 	cluster.NumConns = *clusterNumConnections
 	cluster.CQLVersion = *clusterCQLVersion
-	cluster.PageSize = *clusterPageSize
 	cluster.Keyspace = *keyspace
 
 	if *userName != "" {
@@ -111,9 +108,9 @@ func main() {
 		log.Fatalf("Requested sequence %d not in the DB range %d-%d\n", *fromLedgerIdx, earliestLedgerIdxInDB, latestLedgerIdxInDB)
 	}
 
-	go func() {
-		http.ListenAndServe("localhost:8080", nil)
-	}()
+	// go func() {
+	// 	http.ListenAndServe("localhost:8080", nil)
+	// }()
 
 	//start checking from ledgerIndex, stop when the process ends
 	mismatchCh := make(chan uint64)
