@@ -6,6 +6,7 @@ package shamap
 // And you can run the test using `go test`
 
 // #include "shamap.h"
+// #include <stdlib.h>
 import "C"
 import (
 	"encoding/hex"
@@ -38,19 +39,33 @@ func (shamap GoSHAMap) Free() {
 }
 
 func (shamap GoSHAMap) AddStateItem(key string, value1 string, size1 uint32) {
-	C.SHAMapAddStateItem(shamap.shamap, C.CString(key), C.CString(value1), C.uint(size1))
+	cKey := C.CString(key)
+	cValue1 := C.CString(value1)
+	C.SHAMapAddStateItem(shamap.shamap, cKey, cValue1, C.uint(size1))
+	C.free(unsafe.Pointer(cKey))
+	C.free(unsafe.Pointer(cValue1))
 }
 
 func (shamap GoSHAMap) AddTxItem(value1 string, size1 uint32, value2 string, size2 uint32) {
-	C.SHAMapAddTxItem(shamap.shamap, C.CString(value1), C.uint(size1), C.CString(value2), C.uint(size2))
+	cValue1 := C.CString(value1)
+	cValue2 := C.CString(value2)
+	C.SHAMapAddTxItem(shamap.shamap, cValue1, C.uint(size1), cValue2, C.uint(size2))
+	C.free(unsafe.Pointer(cValue1))
+	C.free(unsafe.Pointer(cValue2))
 }
 
 func (shamap GoSHAMap) UpdateStateItem(key string, value string, size uint32) {
-	C.SHAMapUpdateStateItem(shamap.shamap, C.CString(key), C.CString(value), C.uint(size))
+	cKey := C.CString(key)
+	cValue := C.CString(value)
+	C.SHAMapUpdateStateItem(shamap.shamap, cKey, cValue, C.uint(size))
+	C.free(unsafe.Pointer(cKey))
+	C.free(unsafe.Pointer(cValue))
 }
 
 func (shamap GoSHAMap) DeleteKey(key string) {
+	cKey := C.CString(key)
 	C.SHAMapDeleteKey(shamap.shamap, C.CString(key))
+	C.free(unsafe.Pointer(cKey))
 }
 
 func (shamap GoSHAMap) GetHash() string {
