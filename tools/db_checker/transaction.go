@@ -9,7 +9,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
-func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64, skipSha bool) string {
+func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64, skipSha bool, skipAccountTxCheck bool) string {
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Fatal(err)
@@ -48,6 +48,24 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64,
 		if !skipSha {
 			ptrTxMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
 		}
+		if !skipAccountTxCheck {
+			accounts, txIdx := utils.GetAffectAccountsFromTx(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
+			for _, account := range accounts {
+				log.Printf("Ledger %d, TxId %d, Account: %x\n", ledgerIndex, txIdx, account)
+				var count int
+				err = session.Query(`select count(*) from account_tx where account = ? and seq_idx = (?,?)`, account, ledgerIndex, txIdx+1).Scan(&count)
+				if err != nil {
+					log.Printf("Error: %v account_tx reading %x ledger %d txId %d", err, account, ledgerIndex, txIdx)
+					continue
+				}
+				if count == 0 {
+					log.Printf("Error: account_tx not found for account %x ledger %d txId %d\n", account, ledgerIndex, txIdx)
+				} else {
+					log.Printf("account_tx found for account %x ledger %d txId %d\n", account, ledgerIndex, txIdx)
+				}
+			}
+
+		}
 	}
 	hashFromMap := ""
 	if !skipSha {
@@ -80,7 +98,7 @@ func getHashesFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 	return stateHash, txHash
 }
 
-func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int, skipSHA bool) uint64 {
+func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int, skipSHA bool, skipAccount bool) uint64 {
 	ledgerIndex := endLedgerIndex
 	mismatch := uint64(0)
 	for ledgerIndex >= startLedgerIndex {
@@ -92,7 +110,7 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 		for i := 0; i < thisStep; i++ {
 			seq := ledgerIndex - uint64(i)
 			go func() {
-				txHashFromDBStr := getTransactionsFromLedger(cluster, seq, skipSHA)
+				txHashFromDBStr := getTransactionsFromLedger(cluster, seq, skipSHA, skipAccount)
 
 				if !skipSHA {
 					_, txHashStr := getHashesFromLedgerHeader(cluster, seq)

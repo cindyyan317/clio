@@ -1,5 +1,8 @@
 set(go_files
   main.go
+  transaction.go
+  ledgerhash.go
+  states.go
 )
 
 set(cgo_deps
