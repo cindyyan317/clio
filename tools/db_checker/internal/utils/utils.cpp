@@ -40,6 +40,7 @@ GetAccountTxnIDFromTx(
     int txSize,
     char* metaBlob,
     int metaSize,
+    int maxAccount,
     char* accounts,
     unsigned int* accountCount,
     unsigned int* txnIndex
@@ -52,11 +53,10 @@ GetAccountTxnIDFromTx(
     *txnIndex = txMeta.getIndex();
     auto affectedAccounts = txMeta.getAffectedAccounts();
     uint32_t i = 0;
-    uint32_t const maxAccounts = 1000;
     for (auto const& account : affectedAccounts) {
         std::memcpy(&accounts[i * ripple::AccountID::size()], account.data(), ripple::AccountID::size());
         i++;
-        if (i >= maxAccounts) {
+        if (i >= maxAccount) {
             break;
         }
     }

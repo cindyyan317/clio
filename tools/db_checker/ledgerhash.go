@@ -27,7 +27,7 @@ func getLedgerHashFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uin
 		log.Fatal(err) // the ledger header MUST be present for the ledger
 	}
 
-	ledgerHash := utils.GetLedgerHashFromLedgerHeader(string(header[:]), uint32(len(header)))
+	ledgerHash := utils.GetLedgerHashFromLedgerHeader(string(header), uint32(len(header)))
 	return ledgerHash
 }
 
@@ -39,8 +39,7 @@ func getSeqFromLedgerHash(cluster *gocql.ClusterConfig, ledgerHash string, seq u
 
 	defer session.Close()
 
-	var header uint64
-	header = 0
+	var header uint64 = 0
 	hash, _ := hex.DecodeString(ledgerHash)
 	err = session.Query("select sequence from ledger_hashes where hash = ?",
 		hash).Scan(&header)

@@ -17,6 +17,7 @@ GetAccountTxnIDFromTx(
     int txSize,
     char* metaBlob,
     int metaSize,
+    int maxAccount,
     char* accounts,
     unsigned int* accountCount,
     unsigned int* txnIndex

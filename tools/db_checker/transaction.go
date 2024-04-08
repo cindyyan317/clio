@@ -19,9 +19,7 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64,
 	var hashes [][]byte
 	scanner := session.Query("select hash from ledger_transactions where ledger_sequence = ?", ledgerIndex).Iter().Scanner()
 	for scanner.Next() {
-		var (
-			hash []byte
-		)
+		var hash []byte
 		err = scanner.Scan(&hash)
 		if err != nil {
 			log.Printf("Error: ledger_transactions reading %d", ledgerIndex)
@@ -49,22 +47,7 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64,
 			ptrTxMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
 		}
 		if !skipAccountTxCheck {
-			accounts, txIdx := utils.GetAffectAccountsFromTx(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
-			for _, account := range accounts {
-				log.Printf("Ledger %d, TxId %d, Account: %x\n", ledgerIndex, txIdx, account)
-				var count int
-				err = session.Query(`select count(*) from account_tx where account = ? and seq_idx = (?,?)`, account, ledgerIndex, txIdx+1).Scan(&count)
-				if err != nil {
-					log.Printf("Error: %v account_tx reading %x ledger %d txId %d", err, account, ledgerIndex, txIdx)
-					continue
-				}
-				if count == 0 {
-					log.Printf("Error: account_tx not found for account %x ledger %d txId %d\n", account, ledgerIndex, txIdx)
-				} else {
-					log.Printf("account_tx found for account %x ledger %d txId %d\n", account, ledgerIndex, txIdx)
-				}
-			}
-
+			checkAccountTx(session, ledgerIndex, tx, metadata)
 		}
 	}
 	hashFromMap := ""
@@ -73,6 +56,28 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64,
 		ptrTxMap.Free()
 	}
 	return hashFromMap
+}
+
+func checkAccountTx(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []byte) {
+	const MAX_ACCOUNTS = 1000
+	const ACCOUNT_SIZE = 20 // AccountId is 160 bits -> 20 bytes
+	accounts, txIdx := utils.GetAffectAccountsFromTx(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)), MAX_ACCOUNTS, ACCOUNT_SIZE)
+	if len(accounts) == MAX_ACCOUNTS {
+		log.Printf("Error: too many accounts in ledger %d tx %d\n", ledgerIndex, txIdx)
+	}
+	for _, account := range accounts {
+		var count int
+		err := session.Query(`select count(*) from account_tx where account = ? and seq_idx = (?,?)`, account, ledgerIndex, txIdx).Scan(&count)
+		if err != nil {
+			log.Printf("Error: %v account_tx reading %x ledger %d txId %d", err, account, ledgerIndex, txIdx)
+			continue
+		}
+		if count == 0 {
+			log.Printf("Error: account_tx not found for account %x ledger %d txId %d\n", account, ledgerIndex, txIdx)
+		} else {
+			log.Printf("account_tx found for account %x ledger %d txId %d\n", account, ledgerIndex, txIdx)
+		}
+	}
 }
 
 func getHashesFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uint64) (string, string) {
@@ -118,7 +123,7 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 						mismatch++
 						log.Printf("Error: Tx hash mismatch for ledger %d: %s != %s\n", seq, txHashStr, txHashFromDBStr)
 					} else {
-						log.Printf("Tx hash for ledger %d is correct: %s\n\n", seq, txHashStr)
+						log.Printf("Tx hash for ledger %d is correct: %s\n", seq, txHashStr)
 					}
 				} else {
 					log.Printf("Finish checking tx existence for ledger %d\n", seq)
