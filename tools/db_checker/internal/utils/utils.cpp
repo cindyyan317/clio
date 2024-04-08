@@ -1,9 +1,11 @@
 #include "utils.h"
 
+#include <etl/NFTHelpers.hpp>
 #include <ripple/protocol/AccountID.h>
 #include <ripple/protocol/LedgerHeader.h>
 #include <ripple/protocol/STTx.h>
 #include <ripple/protocol/TxMeta.h>
+#include <ripple/protocol/nft.h>
 
 #include <cstddef>
 
@@ -37,10 +39,10 @@ GetLedgerHashFromLedgerHeader(char* ledgerHeaderBlob, int size, char* hash)
 void
 GetAccountTxnIDFromTx(
     char* txBlob,
-    int txSize,
+    unsigned int txSize,
     char* metaBlob,
-    int metaSize,
-    int maxAccount,
+    unsigned int metaSize,
+    unsigned int maxAccount,
     char* accounts,
     unsigned int* accountCount,
     unsigned int* txnIndex
@@ -49,6 +51,7 @@ GetAccountTxnIDFromTx(
     ripple::Slice slice{txBlob, (size_t)txSize};
     ripple::STTx txn(slice);
     ripple::SerialIter meta{metaBlob, (size_t)metaSize};
+    // no need real ledger index, just set to 0
     ripple::TxMeta txMeta{txn.getTransactionID(), 0, ripple::STObject(meta, ripple::sfMetadata)};
     *txnIndex = txMeta.getIndex();
     auto affectedAccounts = txMeta.getAffectedAccounts();
@@ -61,4 +64,47 @@ GetAccountTxnIDFromTx(
         }
     }
     *accountCount = i;
+}
+
+void
+GetNFTFromTx(
+    char* txBlob,
+    unsigned int txSize,
+    char* metaBlob,
+    unsigned int metaSize,
+    unsigned int maxCount,
+    unsigned int* count,
+    unsigned int* txIdxs,
+    char* nftTokenIds,
+    char* tokenChanged,
+    char* nftChangedId,
+    char* owner,
+    char* urlExists,
+    char* isBurned,
+    unsigned int* taxon
+)
+{
+    ripple::Slice slice{txBlob, (size_t)txSize};
+    ripple::STTx txn(slice);
+    ripple::SerialIter meta{metaBlob, (size_t)metaSize};
+    // no need real ledger index, just set to 0
+    ripple::TxMeta txMeta{txn.getTransactionID(), 0, ripple::STObject(meta, ripple::sfMetadata)};
+    auto [nftTxData, maybeNft] = etl::getNFTDataFromTx(txMeta, txn);
+    *count = nftTxData.size();
+    if (*count > maxCount) {
+        *count = maxCount;
+    }
+    for (unsigned int i = 0; i < *count; i++) {
+        *txIdxs = nftTxData[i].transactionIndex;
+        std::memcpy(&nftTokenIds[i * ripple::uint256::size()], nftTxData[i].tokenID.data(), ripple::uint256::size());
+    }
+    *tokenChanged = maybeNft.has_value() ? 1 : 0;
+    if (maybeNft) {
+        std::memcpy(nftChangedId, maybeNft->tokenID.data(), ripple::uint256::size());
+        std::memcpy(owner, maybeNft->owner.data(), ripple::AccountID::size());
+        std::cout << "owner: " << maybeNft->owner << std::endl;
+        *urlExists = maybeNft->uri.has_value() ? 1 : 0;
+        *isBurned = maybeNft->isBurned ? 1 : 0;
+        *taxon = static_cast<uint32_t>(ripple::nft::getTaxon(maybeNft->tokenID));
+    }
 }

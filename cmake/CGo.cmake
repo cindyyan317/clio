@@ -27,6 +27,8 @@ set(CGO_CXXFLAGS_BLACKLIST
     "-Wformat=2"
 )
 
+add_compile_definitions(BOOST_STACKTRACE_GNU_SOURCE_NOT_REQUIRED)
+
 macro (add_cgo_executable GO_MOD_NAME GO_FILES CGO_DEPS GO_BIN)
   cgo_fetch_cflags_and_ldflags()
   cgo_build_envs()
@@ -86,6 +88,8 @@ macro (cgo_fetch_cflags_and_ldflags)
     "-L."
     "-L${CMAKE_BINARY_DIR}"
     "-lSHAMap"
+    "-lfmt"
+    "-lclio"
     "-lxrpl_core"
     "-led25519"
     "-lsecp256k1"
@@ -94,7 +98,15 @@ macro (cgo_fetch_cflags_and_ldflags)
     "-lcrypto"
     "-ldl"
   )
-  list(APPEND CGO_CXXFLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/../../src" "-I${CMAKE_CURRENT_SOURCE_DIR}" "-I." "-std=c++20")
+  list(
+    APPEND
+    CGO_CXXFLAGS
+    "-I${CMAKE_CURRENT_SOURCE_DIR}/../../src"
+    "-I${CMAKE_CURRENT_SOURCE_DIR}"
+    "-I."
+    "-std=c++20"
+    "-D_GNU_SOURCE=1"
+  )
 
   # Need to remove warnings for CGo to work
   foreach (F ${CGO_CXXFLAGS_BLACKLIST})

@@ -39,7 +39,7 @@ func GetAffectAccountsFromTx(tx string, txSize uint32, meta string, metaSize uin
 	cMeta := C.CString(meta)
 	var txIdx uint32
 	var count uint32
-	C.GetAccountTxnIDFromTx(cTx, C.int(txSize), cMeta, C.int(metaSize), C.int(maxAccount), (*C.char)(unsafe.Pointer(&cbytes[0])), (*C.uint)(unsafe.Pointer(&count)), (*C.uint)(unsafe.Pointer(&txIdx)))
+	C.GetAccountTxnIDFromTx(cTx, C.uint(txSize), cMeta, C.uint(metaSize), C.uint(maxAccount), (*C.char)(unsafe.Pointer(&cbytes[0])), (*C.uint)(unsafe.Pointer(&count)), (*C.uint)(unsafe.Pointer(&txIdx)))
 	C.free(unsafe.Pointer(cTx))
 	C.free(unsafe.Pointer(cMeta))
 	accountBytes := make([][]byte, count)
@@ -47,4 +47,57 @@ func GetAffectAccountsFromTx(tx string, txSize uint32, meta string, metaSize uin
 		accountBytes[i] = cbytes[i*accountSize : (i+1)*accountSize]
 	}
 	return accountBytes, txIdx
+}
+
+type NFTTxData struct {
+	TxIdx   uint32
+	TokenId []byte
+}
+
+type NFTData struct {
+	TxIdx     uint32
+	TokenId   []byte
+	Owner     []byte
+	Taxon     uint32
+	UrlExists bool
+	IsBurn    bool
+}
+
+func GetNFT(tx string, txSize uint32, meta string, metaSize uint32, maxCount uint32, tokenSize uint32) ([]NFTTxData, []NFTData) {
+	cTx := C.CString(tx)
+	cMeta := C.CString(meta)
+	var count uint32
+	var txIdx uint32
+	tokens := make([]byte, maxCount*tokenSize)
+	var hasTokenChanged byte
+	tokenChangedId := make([]byte, tokenSize)
+	account := make([]byte, 20)
+	var urlExists byte
+	var isBurn byte
+	var taxon uint32
+	C.GetNFTFromTx(cTx, C.uint(txSize), cMeta, C.uint(metaSize),
+		C.uint(maxCount), (*C.uint)(unsafe.Pointer(&count)),
+		(*C.uint)(unsafe.Pointer(&txIdx)), (*C.char)(unsafe.Pointer(&tokens[0])),
+		(*C.char)(unsafe.Pointer(&hasTokenChanged)), (*C.char)(unsafe.Pointer(&tokenChangedId[0])),
+		(*C.char)(unsafe.Pointer(&account[0])), (*C.char)(unsafe.Pointer(&urlExists)),
+		(*C.char)(unsafe.Pointer(&isBurn)), (*C.uint)(unsafe.Pointer(&taxon)))
+	C.free(unsafe.Pointer(cTx))
+	C.free(unsafe.Pointer(cMeta))
+
+	nftTxs := make([]NFTTxData, count)
+	for i := uint32(0); i < count; i++ {
+		nftTxs[i].TxIdx = txIdx
+		nftTxs[i].TokenId = tokens[i*tokenSize : (i+1)*tokenSize]
+	}
+
+	nft := make([]NFTData, 0)
+
+	if hasTokenChanged == 1 {
+		nft = append(nft, NFTData{TokenId: tokenChangedId, Owner: account, TxIdx: txIdx})
+		nft[0].IsBurn = isBurn == 1
+		nft[0].UrlExists = urlExists == 1
+		nft[0].Taxon = taxon
+
+	}
+	return nftTxs, nft
 }

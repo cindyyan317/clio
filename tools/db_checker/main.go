@@ -44,10 +44,13 @@ var (
 	fromLedgerIdx = kingpin.Flag("fromLedgerIdx", "Sets the ledger_index to start validation").Short('f').Required().Uint64()
 	toLedgerIdx   = kingpin.Flag("toLedgerIdx", "Sets the ledger_index to end validation").Short('e').Default("0").Uint64()
 	//transactions table
-	tx            = kingpin.Flag("tx", "Whether to do tx validation").Default("false").Bool()
-	txSkipSha     = kingpin.Flag("txSkipSha", "Whether to skip SHA hash for tx validation").Default("false").Bool()
+	tx        = kingpin.Flag("tx", "Whether to do tx validation").Default("false").Bool()
+	txSkipSha = kingpin.Flag("txSkipSha", "Whether to skip SHA hash for tx validation").Default("false").Bool()
+	step      = kingpin.Flag("step", "Set the tx numbers to be validated concurrently").Short('s').Default("50").Int()
+	//skip nft or account_tx check
+	txSkipNFT     = kingpin.Flag("txSkipNFT", "Whether to skip NFT check for tx validation").Default("false").Bool()
 	txSkipAccount = kingpin.Flag("txSkipAccount", "Whether to skip account_tx check for tx validation").Default("false").Bool()
-	step          = kingpin.Flag("step", "Set the tx numbers to be validated concurrently").Short('s').Default("50").Int()
+
 	//objects + successor
 	diff    = kingpin.Flag("diff", "Set the diff numbers to be used to loading ledger in parallel").Short('d').Default("16").Uint32()
 	objects = kingpin.Flag("objects", "Whether to do objects validation").Default("false").Bool()
@@ -125,7 +128,7 @@ func main() {
 	} else if *tx {
 		go func() {
 			log.Printf("Checking tx from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
-			mismatch := checkingTransactionsFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *step, *txSkipSha, *txSkipAccount)
+			mismatch := checkingTransactionsFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *step, *txSkipSha, *txSkipAccount, *txSkipNFT)
 			mismatchCh <- mismatch
 		}()
 	} else if *ledgerHash || *ledgerHashFix {
