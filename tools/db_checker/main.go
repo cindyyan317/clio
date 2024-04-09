@@ -34,15 +34,13 @@ func getLedgerRange(cluster *gocql.ClusterConfig) (uint64, uint64, error) {
 	if err := session.Query("select sequence from ledger_range where is_latest = ?", true).Scan(&latestLedgerIdx); err != nil {
 		return 0, 0, err
 	}
-
-	log.Printf("DB ledger range is %d:%d\n", firstLedgerIdx, latestLedgerIdx)
 	return firstLedgerIdx, latestLedgerIdx, nil
 }
 
 var (
 	clusterHosts  = kingpin.Arg("hosts", "Your Scylla nodes IP addresses, comma separated (i.e. 192.168.1.1,192.168.1.2,192.168.1.3)").Required().String()
-	fromLedgerIdx = kingpin.Flag("fromLedgerIdx", "Sets the ledger_index to start validation").Short('f').Required().Uint64()
-	toLedgerIdx   = kingpin.Flag("toLedgerIdx", "Sets the ledger_index to end validation").Short('e').Default("0").Uint64()
+	fromLedgerIdx = kingpin.Flag("fromLedgerIdx", "Sets the smallest ledger_index to validate").Short('f').Required().Uint64()
+	toLedgerIdx   = kingpin.Flag("toLedgerIdx", "Sets the largest ledger_index to validate").Short('e').Default("0").Uint64()
 	//transactions table
 	tx        = kingpin.Flag("tx", "Whether to do tx validation").Default("false").Bool()
 	txSkipSha = kingpin.Flag("txSkipSha", "Whether to skip SHA hash for tx validation").Default("false").Bool()
@@ -54,6 +52,7 @@ var (
 	//objects + successor
 	diff    = kingpin.Flag("diff", "Set the diff numbers to be used to loading ledger in parallel").Short('d').Default("16").Uint32()
 	objects = kingpin.Flag("objects", "Whether to do objects validation").Default("false").Bool()
+
 	//ledger_hash table
 	ledgerHash    = kingpin.Flag("ledgerHash", "Whether to do ledger_hash table validation").Default("false").Bool()
 	ledgerHashFix = kingpin.Flag("ledgerHashFix", "Whether to do ledger_hash table validation and fix it in place").Default("false").Bool()
@@ -72,6 +71,10 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	kingpin.Parse()
 
+	if *tx && *objects && (*ledgerHash || *ledgerHashFix) {
+		log.Fatalf("Can't check transactions / objects / ledger_hash at the same time")
+	}
+
 	hosts := strings.Split(*clusterHosts, ",")
 	cluster := gocql.NewCluster(hosts...)
 	cluster.Timeout = time.Duration(*clusterTimeout * 1000 * 1000)
@@ -88,9 +91,10 @@ func main() {
 
 	earliestLedgerIdxInDB, latestLedgerIdxInDB, err := getLedgerRange(cluster)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("DB is not available: %v", err)
 	}
-	log.Printf("DB ledger seq range: %d, %d\n", earliestLedgerIdxInDB, latestLedgerIdxInDB)
+
+	log.Printf("Available ledgers in DB: [%d, %d]\n", earliestLedgerIdxInDB, latestLedgerIdxInDB)
 
 	if *toLedgerIdx == 0 {
 		*toLedgerIdx = latestLedgerIdxInDB
@@ -104,17 +108,9 @@ func main() {
 		log.Fatalf("Invalid range: fromLedgerIdx %d > toLedgerIdx %d\n", *fromLedgerIdx, *toLedgerIdx)
 	}
 
-	if earliestLedgerIdxInDB > *fromLedgerIdx || latestLedgerIdxInDB < *fromLedgerIdx {
-		log.Fatalf("Requested sequence %d not in the DB range %d-%d\n", *fromLedgerIdx, earliestLedgerIdxInDB, latestLedgerIdxInDB)
+	if earliestLedgerIdxInDB > *fromLedgerIdx || latestLedgerIdxInDB < *fromLedgerIdx || earliestLedgerIdxInDB > *toLedgerIdx || latestLedgerIdxInDB < *toLedgerIdx {
+		log.Fatalf("Requested sequence [%d,%d] not in the DB range %d-%d\n", *fromLedgerIdx, *toLedgerIdx, earliestLedgerIdxInDB, latestLedgerIdxInDB)
 	}
-
-	if earliestLedgerIdxInDB > *toLedgerIdx || latestLedgerIdxInDB < *toLedgerIdx {
-		log.Fatalf("Requested sequence %d not in the DB range %d-%d\n", *fromLedgerIdx, earliestLedgerIdxInDB, latestLedgerIdxInDB)
-	}
-
-	// go func() {
-	// 	http.ListenAndServe("localhost:8080", nil)
-	// }()
 
 	//start checking from ledgerIndex, stop when the process ends
 	mismatchCh := make(chan uint64)
@@ -137,6 +133,8 @@ func main() {
 			mismatch := checkingLedgerHash(cluster, *fromLedgerIdx, *toLedgerIdx, *step, *ledgerHashFix)
 			mismatchCh <- mismatch
 		}()
+	} else {
+		log.Fatalf("No validation type is selected")
 	}
 	mismatch := <-mismatchCh
 	log.Printf("Finish check from %d to %d : mismatches %d", *toLedgerIdx, *fromLedgerIdx, mismatch)

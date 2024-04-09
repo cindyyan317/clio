@@ -9,7 +9,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
-func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64, skipSha bool, skipAccountTxCheck bool, skipNFT bool) string {
+func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skipSha bool, skipAccountTxCheck bool, skipNFT bool) string {
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Fatal(err)
@@ -44,7 +44,7 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64,
 			continue
 		}
 		if !skipSha {
-			ptrTxMap.AddTxItem(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)))
+			ptrTxMap.AddTxItem(string(tx), uint32(len(tx)), string(metadata), uint32(len(metadata)))
 		}
 		if !skipAccountTxCheck {
 			checkAccountTx(session, ledgerIndex, tx, metadata)
@@ -64,8 +64,7 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64,
 func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []byte) {
 	// It may have multiple nft tx in one transaction, eg cancel offers
 	const MAX_ITEM = 100
-	const TOKEN_SIZE = 32
-	nftTxData, nftData := utils.GetNFT(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)), MAX_ITEM, TOKEN_SIZE)
+	nftTxData, nftData := utils.GetNFT(string(tx), uint32(len(tx)), string(metadata), uint32(len(metadata)), MAX_ITEM)
 
 	if len(nftTxData) == MAX_ITEM {
 		log.Printf("Error: too many NFT tx in ledger %d\n", ledgerIndex)
@@ -86,7 +85,7 @@ func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []
 	}
 
 	for _, nft := range nftData {
-		log.Printf("NFT found for ledger %d txId %d tokenId %x issuer %x urlExists %v isBurn %v\n",
+		log.Printf("Changed NFT found for ledger %d txId %d tokenId %x issuer %x urlExists %v isBurn %v\n",
 			ledgerIndex, nft.TxIdx, nft.TokenId, nft.Issuer, nft.UrlExists, nft.IsBurn)
 		//nf_tokens
 		var count int
@@ -129,8 +128,7 @@ func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []
 
 func checkAccountTx(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []byte) {
 	const MAX_ACCOUNTS = 1000
-	const ACCOUNT_SIZE = 20 // AccountId is 160 bits -> 20 bytes
-	accounts, txIdx := utils.GetAffectAccountsFromTx(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)), MAX_ACCOUNTS, ACCOUNT_SIZE)
+	accounts, txIdx := utils.GetAffectAccountsFromTx(string(tx), uint32(len(tx)), string(metadata), uint32(len(metadata)), MAX_ACCOUNTS)
 	if len(accounts) == MAX_ACCOUNTS {
 		log.Printf("Error: too many accounts in ledger %d tx %d\n", ledgerIndex, txIdx)
 	}
@@ -157,23 +155,22 @@ func getHashesFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 	defer session.Close()
 
 	var header []byte
-	err = session.Query("select header from ledgers where sequence = ?",
-		ledgerIndex).Scan(&header)
+	err = session.Query("select header from ledgers where sequence = ?", ledgerIndex).Scan(&header)
 
 	if err != nil {
-		log.Printf("Error: ledgers reading %d", ledgerIndex)
-		log.Println(err)
+		log.Printf("Error: %v ledgers reading %d", err, ledgerIndex)
 		return "", ""
 	}
 
-	txHash := utils.GetTxHashFromLedgerHeader(string(header[:]), uint32(len(header)))
-	stateHash := utils.GetStatesHashFromLedgerHeader(string(header[:]), uint32(len(header)))
+	txHash := utils.GetTxHashFromLedgerHeader(string(header), uint32(len(header)))
+	stateHash := utils.GetStatesHashFromLedgerHeader(string(header), uint32(len(header)))
 	return stateHash, txHash
 }
 
 func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int, skipSHA bool, skipAccount bool, skipNFT bool) uint64 {
 	ledgerIndex := endLedgerIndex
 	mismatch := uint64(0)
+
 	for ledgerIndex >= startLedgerIndex {
 
 		thisStep := min(step, int(ledgerIndex-startLedgerIndex+1))
@@ -183,7 +180,7 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 		for i := 0; i < thisStep; i++ {
 			seq := ledgerIndex - uint64(i)
 			go func() {
-				txHashFromDBStr := getTransactionsFromLedger(cluster, seq, skipSHA, skipAccount, skipNFT)
+				txHashFromDBStr := TraverseTxHashFromDB(cluster, seq, skipSHA, skipAccount, skipNFT)
 
 				if !skipSHA {
 					_, txHashStr := getHashesFromLedgerHeader(cluster, seq)

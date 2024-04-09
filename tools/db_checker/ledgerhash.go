@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"internal/utils"
 	"log"
-	"runtime"
 	"sync"
 
 	"github.com/gocql/gocql"
@@ -67,12 +66,7 @@ func getSeqFromLedgerHash(cluster *gocql.ClusterConfig, ledgerHash string, seq u
 
 func checkingLedgerHash(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int, ledgerHashFix bool) uint64 {
 	ledgerIndex := endLedgerIndex
-	mismatch := uint64(0)
-	// memProfileFile, err := os.Create("mem.prof")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer memProfileFile.Close()
+	var mismatch uint64 = 0
 
 	for ledgerIndex >= startLedgerIndex {
 
@@ -93,12 +87,7 @@ func checkingLedgerHash(cluster *gocql.ClusterConfig, startLedgerIndex uint64, e
 			}()
 		}
 		wg.Wait()
-		runtime.GC()
 		ledgerIndex -= uint64(thisStep)
 	}
-	// Write memory profile to file
-	// if err := pprof.WriteHeapProfile(memProfileFile); err != nil {
-	// 	panic(err)
-	// }
 	return mismatch
 }

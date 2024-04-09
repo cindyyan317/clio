@@ -10,7 +10,8 @@ import (
 )
 
 func GetTxHashFromLedgerHeader(blob string, size uint32) string {
-	cbytes := make([]byte, 32)
+	const txHashSize = 32
+	cbytes := make([]byte, txHashSize)
 	cblob := C.CString(blob)
 	C.GetTxHashFromLedgerHeader(cblob, C.int(size), (*C.char)(unsafe.Pointer(&cbytes[0])))
 	C.free(unsafe.Pointer(cblob))
@@ -18,7 +19,8 @@ func GetTxHashFromLedgerHeader(blob string, size uint32) string {
 }
 
 func GetStatesHashFromLedgerHeader(blob string, size uint32) string {
-	cbytes := make([]byte, 32)
+	const stateHashSize = 32
+	cbytes := make([]byte, stateHashSize)
 	cblob := C.CString(blob)
 	C.GetStatesHashFromLedgerHeader(cblob, C.int(size), (*C.char)(unsafe.Pointer(&cbytes[0])))
 	C.free(unsafe.Pointer(cblob))
@@ -26,14 +28,16 @@ func GetStatesHashFromLedgerHeader(blob string, size uint32) string {
 }
 
 func GetLedgerHashFromLedgerHeader(blob string, size uint32) string {
-	cbytes := make([]byte, 32)
+	const ledgerHashSize = 32
+	cbytes := make([]byte, ledgerHashSize)
 	cblob := C.CString(blob)
 	C.GetLedgerHashFromLedgerHeader(cblob, C.int(size), (*C.char)(unsafe.Pointer(&cbytes[0])))
 	C.free(unsafe.Pointer(cblob))
 	return strings.ToUpper(hex.EncodeToString(cbytes))
 }
 
-func GetAffectAccountsFromTx(tx string, txSize uint32, meta string, metaSize uint32, maxAccount uint32, accountSize uint32) ([][]byte, uint32) {
+func GetAffectAccountsFromTx(tx string, txSize uint32, meta string, metaSize uint32, maxAccount uint32) ([][]byte, uint32) {
+	const accountSize = 20 // AccountId is 160 bits -> 20 bytes
 	cbytes := make([]byte, accountSize*maxAccount)
 	cTx := C.CString(tx)
 	cMeta := C.CString(meta)
@@ -63,7 +67,9 @@ type NFTData struct {
 	IsBurn    bool
 }
 
-func GetNFT(tx string, txSize uint32, meta string, metaSize uint32, maxCount uint32, tokenSize uint32) ([]NFTTxData, []NFTData) {
+func GetNFT(tx string, txSize uint32, meta string, metaSize uint32, maxCount uint32) ([]NFTTxData, []NFTData) {
+	const tokenSize = 32   // uint256 -> 32 bytes
+	const accountSize = 20 // AccountId is 160 bits -> 20 bytes
 	cTx := C.CString(tx)
 	cMeta := C.CString(meta)
 	var count uint32
@@ -71,7 +77,7 @@ func GetNFT(tx string, txSize uint32, meta string, metaSize uint32, maxCount uin
 	tokens := make([]byte, maxCount*tokenSize)
 	var hasTokenChanged byte
 	tokenChangedId := make([]byte, tokenSize)
-	account := make([]byte, 20)
+	account := make([]byte, accountSize)
 	var urlExists byte
 	var isBurn byte
 	var taxon uint32
