@@ -62,12 +62,13 @@ func getTransactionsFromLedger(cluster *gocql.ClusterConfig, ledgerIndex uint64,
 }
 
 func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []byte) {
-	const MAX_ITEM = 3
+	// It may have multiple nft tx in one transaction, eg cancel offers
+	const MAX_ITEM = 100
 	const TOKEN_SIZE = 32
 	nftTxData, nftData := utils.GetNFT(string(tx[:]), uint32(len(tx)), string(metadata[:]), uint32(len(metadata)), MAX_ITEM, TOKEN_SIZE)
 
 	if len(nftTxData) == MAX_ITEM {
-		log.Printf("Error: too many NFTs in ledger %d\n", ledgerIndex)
+		log.Printf("Error: too many NFT tx in ledger %d\n", ledgerIndex)
 	}
 
 	//nf_token_transactions
@@ -75,7 +76,7 @@ func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []
 		var count int
 		err := session.Query(`select count(*) from nf_token_transactions where token_id = ? and seq_idx = (?,?)`, nft.TokenId, ledgerIndex, nft.TxIdx).Scan(&count)
 		if err != nil {
-			log.Fatal("Error: %v nf_token_transactions reading %x ledger %d txId %d", err, nft.TokenId, ledgerIndex, nft.TxIdx)
+			log.Fatalf("Error: %v nf_token_transactions reading %x ledger %d txId %d", err, nft.TokenId, ledgerIndex, nft.TxIdx)
 		}
 		if count == 0 {
 			log.Printf("Error: nf_token_transactions not found for nft %x ledger %d txId %d\n", nft.TokenId, ledgerIndex, nft.TxIdx)
@@ -85,13 +86,13 @@ func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []
 	}
 
 	for _, nft := range nftData {
-		log.Printf("NFT found for ledger %d txId %d tokenId %x owner %x urlExists %v isBurn %v\n",
-			ledgerIndex, nft.TxIdx, nft.TokenId, nft.Owner, nft.UrlExists, nft.IsBurn)
+		log.Printf("NFT found for ledger %d txId %d tokenId %x issuer %x urlExists %v isBurn %v\n",
+			ledgerIndex, nft.TxIdx, nft.TokenId, nft.Issuer, nft.UrlExists, nft.IsBurn)
 		//nf_tokens
 		var count int
 		err := session.Query(`select count(*) from nf_tokens where token_id = ? and sequence = ?`, nft.TokenId, ledgerIndex).Scan(&count)
 		if err != nil {
-			log.Fatal("Error: %v nf_tokens reading %x ledger %d", err, nft.TokenId, ledgerIndex)
+			log.Fatalf("Error: %v nf_tokens reading %x ledger %d", err, nft.TokenId, ledgerIndex)
 		}
 		if count == 0 {
 			log.Printf("Error: nf_tokens not found for nft %x ledger %dn", nft.TokenId, ledgerIndex)
@@ -103,7 +104,7 @@ func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []
 		if nft.UrlExists {
 			err := session.Query(`select count(*) from nf_token_uris where token_id = ? and sequence = ?`, nft.TokenId, ledgerIndex).Scan(&count)
 			if err != nil {
-				log.Fatal("Error: %v nf_token_uris reading %x ledger %d", err, nft.TokenId, ledgerIndex)
+				log.Fatalf("Error: %v nf_token_uris reading %x ledger %d", err, nft.TokenId, ledgerIndex)
 			}
 			if count == 0 {
 				log.Printf("Error: nf_token_uris not found for nft %x ledger %dn", nft.TokenId, ledgerIndex)
@@ -112,14 +113,14 @@ func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []
 			}
 
 			err = session.Query(`select count(*) from issuer_nf_tokens_v2 where issuer = ? and taxon = ? and token_id = ?`,
-				nft.Owner, nft.Taxon, nft.TokenId).Scan(&count)
+				nft.Issuer, nft.Taxon, nft.TokenId).Scan(&count)
 			if err != nil {
-				log.Fatal("Error: %v issuer_nf_tokens_v2 reading issuer %x taxon %d token_id %x", err, nft.Owner, nft.Taxon, nft.TokenId)
+				log.Fatalf("Error: %v issuer_nf_tokens_v2 reading issuer %x taxon %d token_id %x", err, nft.Issuer, nft.Taxon, nft.TokenId)
 			}
 			if count == 0 {
-				log.Printf("Error: issuer_nf_tokens_v2 not found for issuer %x taxon %d token_id %x\n", nft.Owner, nft.Taxon, nft.TokenId)
+				log.Printf("Error: issuer_nf_tokens_v2 not found for issuer %x taxon %d token_id %x\n", nft.Issuer, nft.Taxon, nft.TokenId)
 			} else {
-				log.Printf("issuer_nf_tokens_v2 found for issuer %x taxon %d token_id %x\n", nft.Owner, nft.Taxon, nft.TokenId)
+				log.Printf("issuer_nf_tokens_v2 found for issuer %x taxon %d token_id %x\n", nft.Issuer, nft.Taxon, nft.TokenId)
 			}
 		}
 
@@ -137,7 +138,7 @@ func checkAccountTx(session *gocql.Session, ledgerIndex uint64, tx []byte, metad
 		var count int
 		err := session.Query(`select count(*) from account_tx where account = ? and seq_idx = (?,?)`, account, ledgerIndex, txIdx).Scan(&count)
 		if err != nil {
-			log.Fatal("Error: %v account_tx reading %x ledger %d txId %d", err, account, ledgerIndex, txIdx)
+			log.Fatalf("Error: %v account_tx reading %x ledger %d txId %d", err, account, ledgerIndex, txIdx)
 		}
 		if count == 0 {
 			log.Printf("Error: account_tx not found for account %x ledger %d txId %d\n", account, ledgerIndex, txIdx)

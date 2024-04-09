@@ -57,7 +57,7 @@ type NFTTxData struct {
 type NFTData struct {
 	TxIdx     uint32
 	TokenId   []byte
-	Owner     []byte
+	Issuer    []byte
 	Taxon     uint32
 	UrlExists bool
 	IsBurn    bool
@@ -93,7 +93,7 @@ func GetNFT(tx string, txSize uint32, meta string, metaSize uint32, maxCount uin
 	nft := make([]NFTData, 0)
 
 	if hasTokenChanged == 1 {
-		nft = append(nft, NFTData{TokenId: tokenChangedId, Owner: account, TxIdx: txIdx})
+		nft = append(nft, NFTData{TokenId: tokenChangedId, Issuer: account, TxIdx: txIdx})
 		nft[0].IsBurn = isBurn == 1
 		nft[0].UrlExists = urlExists == 1
 		nft[0].Taxon = taxon

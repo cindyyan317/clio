@@ -78,7 +78,7 @@ GetNFTFromTx(
     char* nftTokenIds,
     char* tokenChanged,
     char* nftChangedId,
-    char* owner,
+    char* issuer,
     char* urlExists,
     char* isBurned,
     unsigned int* taxon
@@ -101,8 +101,8 @@ GetNFTFromTx(
     *tokenChanged = maybeNft.has_value() ? 1 : 0;
     if (maybeNft) {
         std::memcpy(nftChangedId, maybeNft->tokenID.data(), ripple::uint256::size());
-        std::memcpy(owner, maybeNft->owner.data(), ripple::AccountID::size());
-        std::cout << "owner: " << maybeNft->owner << std::endl;
+        auto const nftIssuer = ripple::nft::getIssuer(maybeNft->tokenID);
+        std::memcpy(issuer, nftIssuer.data(), ripple::AccountID::size());
         *urlExists = maybeNft->uri.has_value() ? 1 : 0;
         *isBurned = maybeNft->isBurned ? 1 : 0;
         *taxon = static_cast<uint32_t>(ripple::nft::getTaxon(maybeNft->tokenID));

@@ -31,13 +31,13 @@ GetNFTFromTx(
     unsigned int metaSize,
     unsigned int maxCount,
     unsigned int* count,
-    unsigned int* txIdxs,
-    char* nftTokenIds,
-    char* tokenChanged,
-    char* nftChangedId,
-    char* owner,
-    char* urlExists,
-    char* isBurned,
+    unsigned int* txIdxs,  // nft tx index list
+    char* nftTokenIds,     // affected nft token id list
+    char* tokenChanged,    // if has token changed
+    char* nftChangedId,    // changed nft token id
+    char* issuer,          // nft issuer
+    char* urlExists,       // if nft url exists
+    char* isBurned,        // if nft burned
     unsigned int* taxon
 );
 
