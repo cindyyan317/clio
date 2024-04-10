@@ -74,7 +74,7 @@ void
 SHAMapUpdateStateItem(SHAMap m, char const* key, char const* value, unsigned valueSize)
 {
     SHAMapWrapper* w = (SHAMapWrapper*)m;
-    ripple::uint256 k{key};
+    auto const k = ripple::uint256::fromVoid(key);
     ripple::Slice slice{value, valueSize};
     w->map.updateGiveItem(ripple::SHAMapNodeType::tnACCOUNT_STATE, make_shamapitem(k, slice));
 }
@@ -83,7 +83,7 @@ void
 SHAMapDeleteKey(SHAMap m, char const* key)
 {
     SHAMapWrapper* w = (SHAMapWrapper*)m;
-    ripple::uint256 k{key};
+    auto const k = ripple::uint256::fromVoid(key);
     w->map.delItem(k);
 }
 
@@ -105,6 +105,5 @@ SHAMapTest()
     char const* bb = "";
     ripple::Slice slice{bb, 0};
     stateMap.addItem(ripple::SHAMapNodeType::tnACCOUNT_STATE, make_shamapitem(key, slice));
-
     std::cout << stateMap.getHash().as_uint256() << std::endl;
 }

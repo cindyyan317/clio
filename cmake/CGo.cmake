@@ -27,8 +27,6 @@ set(CGO_CXXFLAGS_BLACKLIST
     "-Wformat=2"
 )
 
-add_compile_definitions(BOOST_STACKTRACE_GNU_SOURCE_NOT_REQUIRED)
-
 macro (add_cgo_executable GO_MOD_NAME GO_FILES CGO_DEPS GO_BIN)
   cgo_fetch_cflags_and_ldflags()
   cgo_build_envs()

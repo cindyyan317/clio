@@ -169,7 +169,7 @@ func getHashesFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 
 func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int, skipSHA bool, skipAccount bool, skipNFT bool) uint64 {
 	ledgerIndex := endLedgerIndex
-	mismatch := uint64(0)
+	var mismatch uint64 = 0
 
 	for ledgerIndex >= startLedgerIndex {
 

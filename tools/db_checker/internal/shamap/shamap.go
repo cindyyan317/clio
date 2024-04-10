@@ -64,7 +64,7 @@ func (shamap GoSHAMap) UpdateStateItem(key string, value string, size uint32) {
 
 func (shamap GoSHAMap) DeleteKey(key string) {
 	cKey := C.CString(key)
-	C.SHAMapDeleteKey(shamap.shamap, C.CString(key))
+	C.SHAMapDeleteKey(shamap.shamap, cKey)
 	C.free(unsafe.Pointer(cKey))
 }
 

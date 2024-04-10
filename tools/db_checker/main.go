@@ -41,7 +41,7 @@ var (
 	clusterHosts  = kingpin.Arg("hosts", "Your Scylla nodes IP addresses, comma separated (i.e. 192.168.1.1,192.168.1.2,192.168.1.3)").Required().String()
 	fromLedgerIdx = kingpin.Flag("fromLedgerIdx", "Sets the smallest ledger_index to validate").Short('f').Required().Uint64()
 	toLedgerIdx   = kingpin.Flag("toLedgerIdx", "Sets the largest ledger_index to validate").Short('e').Default("0").Uint64()
-	//transactions table
+	//----------------transactions table----------------
 	tx        = kingpin.Flag("tx", "Whether to do tx validation").Default("false").Bool()
 	txSkipSha = kingpin.Flag("txSkipSha", "Whether to skip SHA hash for tx validation").Default("false").Bool()
 	step      = kingpin.Flag("step", "Set the tx numbers to be validated concurrently").Short('s').Default("50").Int()
@@ -49,11 +49,14 @@ var (
 	txSkipNFT     = kingpin.Flag("txSkipNFT", "Whether to skip NFT check for tx validation").Default("false").Bool()
 	txSkipAccount = kingpin.Flag("txSkipAccount", "Whether to skip account_tx check for tx validation").Default("false").Bool()
 
-	//objects + successor
-	diff    = kingpin.Flag("diff", "Set the diff numbers to be used to loading ledger in parallel").Short('d').Default("16").Uint32()
+	//----------------objects + successor----------------
+	cursors = kingpin.Flag("cursors", "Set the diff numbers to be used to loading ledger in parallel").Short('d').Default("16").Uint32()
 	objects = kingpin.Flag("objects", "Whether to do objects validation").Default("false").Bool()
 
-	//ledger_hash table
+	//----------------diff table---------------
+	diff = kingpin.Flag("diff", "Whether to do diff table validation").Default("false").Bool()
+
+	//----------------ledger_hash table----------------
 	ledgerHash    = kingpin.Flag("ledgerHash", "Whether to do ledger_hash table validation").Default("false").Bool()
 	ledgerHashFix = kingpin.Flag("ledgerHashFix", "Whether to do ledger_hash table validation and fix it in place").Default("false").Bool()
 
@@ -118,7 +121,7 @@ func main() {
 	if *objects {
 		go func() {
 			log.Printf("Checking objects from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
-			seq := checkingStatesFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *diff)
+			seq := checkingStatesFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *cursors)
 			mismatchCh <- seq
 		}()
 	} else if *tx {
@@ -131,6 +134,12 @@ func main() {
 		go func() {
 			log.Printf("Checking ledger hash from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
 			mismatch := checkingLedgerHash(cluster, *fromLedgerIdx, *toLedgerIdx, *step, *ledgerHashFix)
+			mismatchCh <- mismatch
+		}()
+	} else if *diff {
+		go func() {
+			log.Printf("Checking diff from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
+			mismatch := checkingDiff(cluster, *fromLedgerIdx, *toLedgerIdx, *cursors)
 			mismatchCh <- mismatch
 		}()
 	} else {

@@ -48,7 +48,7 @@ func LoadStatesFromCursor(cluster *gocql.ClusterConfig, stateMap *shamap.GoSHAMa
 			}
 			// add in shamap
 			statesMapMutex.Lock()
-			stateMap.AddStateItem(string(from[:]), string(object[:]), uint32(len(object)))
+			stateMap.AddStateItem(string(from), string(object), uint32(len(object)))
 			statesMapMutex.Unlock()
 		}
 		// find next
@@ -63,10 +63,23 @@ func LoadStatesFromCursor(cluster *gocql.ClusterConfig, stateMap *shamap.GoSHAMa
 		if slices.Compare(next, to) >= 0 {
 			break
 		}
-		//log.Printf("next : %x cursor thread : %x end to: %x\n", next, cursorThread, to)
 		from = next
 	}
 	log.Printf("Cursor : %x Finished\n", cursorThread)
+}
+
+func getIndexesFromDiff(session *gocql.Session, ledgerIndex uint64) [][]byte {
+	var ret [][]byte
+	scanner := session.Query("select key from diff where seq = ?", ledgerIndex).Iter().Scanner()
+	for scanner.Next() {
+		var key []byte
+		err := scanner.Scan(&key)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ret = append(ret, key)
+	}
+	return ret
 }
 
 func getLedgerStatesCursor(cluster *gocql.ClusterConfig, diff uint32, startIdx uint64) ([][]byte, error) {
@@ -79,19 +92,9 @@ func getLedgerStatesCursor(cluster *gocql.ClusterConfig, diff uint32, startIdx u
 	var ret [][]byte
 	defer session.Close()
 
-	var i uint32
-	for i = 0; i < diff; i++ {
-		scanner := session.Query("select key from diff where seq = ?", startIdx-uint64(i)).Iter().Scanner()
-		for scanner.Next() {
-			var (
-				key []byte
-			)
-			err = scanner.Scan(&key)
-			if err != nil {
-				log.Fatal(err)
-			}
-			ret = append(ret, key)
-		}
+	for i := uint64(0); i < (uint64(diff)); i++ {
+		keys := getIndexesFromDiff(session, startIdx-i)
+		ret = append(ret, keys...)
 	}
 
 	slices.SortFunc(ret, func(a, b []byte) int {
@@ -130,7 +133,29 @@ func getLedgerStatesCursor(cluster *gocql.ClusterConfig, diff uint32, startIdx u
 	return ret, nil
 }
 
-func LoadStatesFromCursors(cluster *gocql.ClusterConfig, ledgerIndex uint64, cursors [][]byte) string {
+func UpdateStatesFromDiff(session *gocql.Session, statesMap *shamap.GoSHAMap, ledgerIndex uint64) string {
+
+	diffs := getIndexesFromDiff(session, ledgerIndex)
+	for _, diff := range diffs {
+		var object []byte
+		err := session.Query("select object from objects where key = ? and sequence <= ? order by sequence desc limit 1",
+			diff, ledgerIndex).Scan(&object)
+		if err != nil {
+			log.Fatal(err)
+		}
+		statesMapMutex.Lock()
+		if len(object) == 0 { // object removed
+			statesMap.DeleteKey(string(diff))
+		} else { // object updated, API may change to UpdateStateItem
+			statesMap.DeleteKey(string(diff))
+			statesMap.AddStateItem(string(diff), string(object), uint32(len(object)))
+		}
+		statesMapMutex.Unlock()
+	}
+	return statesMap.GetHash()
+}
+
+func LoadStatesFromCursors(cluster *gocql.ClusterConfig, statesMap *shamap.GoSHAMap, ledgerIndex uint64, cursors [][]byte) string {
 
 	first := make([]byte, 32)
 	end := make([]byte, 32)
@@ -139,47 +164,85 @@ func LoadStatesFromCursors(cluster *gocql.ClusterConfig, ledgerIndex uint64, cur
 	copy(end, CURSOR_END)
 
 	var wg sync.WaitGroup
-	wg.Add(1 + len(cursors))
-	statesMap := shamap.MakeSHAMapState()
+	wg.Add(len(cursors))
 	for _, cursor := range cursors {
 		firstCpy := make([]byte, 32)
 		cursorCpy := make([]byte, 32)
 		copy(firstCpy, first)
 		copy(cursorCpy, cursor)
 		go func() {
-			LoadStatesFromCursor(cluster, &statesMap, ledgerIndex, firstCpy, cursorCpy)
+			LoadStatesFromCursor(cluster, statesMap, ledgerIndex, firstCpy, cursorCpy)
 			wg.Done()
 		}()
 		first = cursor
 	}
 
-	LoadStatesFromCursor(cluster, &statesMap, ledgerIndex, first, end)
-	wg.Done()
-
+	LoadStatesFromCursor(cluster, statesMap, ledgerIndex, first, end)
 	wg.Wait()
-
-	hash := statesMap.GetHash()
-	statesMap.Free()
-	return hash
+	return statesMap.GetHash()
 }
 
-func checkingStatesFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, diff uint32) uint64 {
+func checkingStatesFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, cursorsCount uint32) uint64 {
 	ledgerIndex := startLedgerIndex
-	mismatch := uint64(0)
+	var mismatch uint64 = 0
 	for ledgerIndex <= endLedgerIndex {
 		log.Printf("Checking states for ledger %d\n", ledgerIndex)
 
-		cursor, _ := getLedgerStatesCursor(cluster, diff, ledgerIndex)
-		//using cursor to start loading from DB
-		ledgerHashFromMap := LoadStatesFromCursors(cluster, ledgerIndex, cursor)
+		cursor, _ := getLedgerStatesCursor(cluster, cursorsCount, ledgerIndex)
+		statesMap := shamap.MakeSHAMapState()
+		ledgerHashFromMap := LoadStatesFromCursors(cluster, &statesMap, ledgerIndex, cursor)
+		statesMap.Free()
 		ledgerHashFromHeader, _ := getHashesFromLedgerHeader(cluster, ledgerIndex)
 
 		if ledgerHashFromHeader != ledgerHashFromMap {
 			mismatch++
-			log.Printf("state hash mismatch for ledger %d: %s != %s\n", ledgerIndex, ledgerHashFromMap, ledgerHashFromHeader)
+			log.Printf("State hash mismatch for ledger %d: %s != %s\n", ledgerIndex, ledgerHashFromMap, ledgerHashFromHeader)
+		} else {
+			log.Printf("State hash for ledger %d is correct: %s\n\n", ledgerIndex, ledgerHashFromHeader)
 		}
-		log.Printf("States hash for ledger %d is correct: %s\n\n", ledgerIndex, ledgerHashFromHeader)
 		ledgerIndex++
 	}
+	return mismatch
+}
+
+func checkingDiff(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, cursorsCount uint32) uint64 {
+	ledgerIndex := startLedgerIndex
+	var mismatch uint64 = 0
+
+	//check the state for the first ledger
+	log.Printf("Checking states for ledger %d\n", ledgerIndex)
+	cursor, _ := getLedgerStatesCursor(cluster, cursorsCount, ledgerIndex)
+	//using cursor to start loading from DB
+	statesMap := shamap.MakeSHAMapState()
+	ledgerHashFromMap := LoadStatesFromCursors(cluster, &statesMap, ledgerIndex, cursor)
+	ledgerHashFromHeader, _ := getHashesFromLedgerHeader(cluster, ledgerIndex)
+
+	if ledgerHashFromHeader != ledgerHashFromMap {
+		mismatch++
+		log.Printf("State hash mismatch for ledger %d: %s != %s\n", ledgerIndex, ledgerHashFromMap, ledgerHashFromHeader)
+		return mismatch
+	}
+	log.Printf("State hash for ledger %d is correct: %s\n\n", ledgerIndex, ledgerHashFromHeader)
+
+	session, err := cluster.CreateSession()
+	if err != nil {
+		log.Fatal(err)
+	}
+	//check the diff for the rest of the ledgers
+	for ledgerIndex = startLedgerIndex + 1; ledgerIndex <= endLedgerIndex; ledgerIndex++ {
+		log.Printf("Checking diff for ledger %d\n", ledgerIndex)
+
+		ledgerHashFromMap := UpdateStatesFromDiff(session, &statesMap, ledgerIndex)
+		ledgerHashFromHeader, _ := getHashesFromLedgerHeader(cluster, ledgerIndex)
+
+		if ledgerHashFromHeader != ledgerHashFromMap {
+			mismatch++
+			log.Printf("State hash mismatch for ledger %d: %s != %s\n", ledgerIndex, ledgerHashFromMap, ledgerHashFromHeader)
+		} else {
+			log.Printf("State hash for ledger %d is correct: %s\n\n", ledgerIndex, ledgerHashFromHeader)
+		}
+	}
+
+	statesMap.Free()
 	return mismatch
 }
