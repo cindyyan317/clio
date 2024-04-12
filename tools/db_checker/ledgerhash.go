@@ -26,7 +26,7 @@ func getLedgerHashFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uin
 		log.Fatal(err) // the ledger header MUST be present for the ledger
 	}
 
-	ledgerHash := utils.GetLedgerHashFromLedgerHeader(string(header), uint32(len(header)))
+	ledgerHash := utils.GetLedgerHashFromLedgerHeader(header, uint32(len(header)))
 	return ledgerHash
 }
 

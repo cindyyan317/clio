@@ -9,43 +9,43 @@ import (
 	"unsafe"
 )
 
-func GetTxHashFromLedgerHeader(blob string, size uint32) string {
+func GetTxHashFromLedgerHeader(blob []byte, size uint32) string {
 	const txHashSize = 32
 	cbytes := make([]byte, txHashSize)
-	cblob := C.CString(blob)
-	C.GetTxHashFromLedgerHeader(cblob, C.int(size), (*C.char)(unsafe.Pointer(&cbytes[0])))
-	C.free(unsafe.Pointer(cblob))
+	cblob := C.CBytes(blob)
+	C.GetTxHashFromLedgerHeader((*C.char)(cblob), C.int(size), (*C.char)(unsafe.Pointer(&cbytes[0])))
+	C.free(cblob)
 	return strings.ToUpper(hex.EncodeToString(cbytes))
 }
 
-func GetStatesHashFromLedgerHeader(blob string, size uint32) string {
+func GetStatesHashFromLedgerHeader(blob []byte, size uint32) string {
 	const stateHashSize = 32
 	cbytes := make([]byte, stateHashSize)
-	cblob := C.CString(blob)
-	C.GetStatesHashFromLedgerHeader(cblob, C.int(size), (*C.char)(unsafe.Pointer(&cbytes[0])))
-	C.free(unsafe.Pointer(cblob))
+	cblob := C.CBytes(blob)
+	C.GetStatesHashFromLedgerHeader((*C.char)(cblob), C.int(size), (*C.char)(unsafe.Pointer(&cbytes[0])))
+	C.free(cblob)
 	return strings.ToUpper(hex.EncodeToString(cbytes))
 }
 
-func GetLedgerHashFromLedgerHeader(blob string, size uint32) string {
+func GetLedgerHashFromLedgerHeader(blob []byte, size uint32) string {
 	const ledgerHashSize = 32
 	cbytes := make([]byte, ledgerHashSize)
-	cblob := C.CString(blob)
-	C.GetLedgerHashFromLedgerHeader(cblob, C.int(size), (*C.char)(unsafe.Pointer(&cbytes[0])))
-	C.free(unsafe.Pointer(cblob))
+	cblob := C.CBytes(blob)
+	C.GetLedgerHashFromLedgerHeader((*C.char)(cblob), C.int(size), (*C.char)(unsafe.Pointer(&cbytes[0])))
+	C.free(cblob)
 	return strings.ToUpper(hex.EncodeToString(cbytes))
 }
 
-func GetAffectAccountsFromTx(tx string, txSize uint32, meta string, metaSize uint32, maxAccount uint32) ([][]byte, uint32) {
+func GetAffectAccountsFromTx(tx []byte, txSize uint32, meta []byte, metaSize uint32, maxAccount uint32) ([][]byte, uint32) {
 	const accountSize = 20 // AccountId is 160 bits -> 20 bytes
 	cbytes := make([]byte, accountSize*maxAccount)
-	cTx := C.CString(tx)
-	cMeta := C.CString(meta)
+	cTx := C.CBytes(tx)
+	cMeta := C.CBytes(meta)
 	var txIdx uint32
 	var count uint32
-	C.GetAccountTxnIDFromTx(cTx, C.uint(txSize), cMeta, C.uint(metaSize), C.uint(maxAccount), (*C.char)(unsafe.Pointer(&cbytes[0])), (*C.uint)(unsafe.Pointer(&count)), (*C.uint)(unsafe.Pointer(&txIdx)))
-	C.free(unsafe.Pointer(cTx))
-	C.free(unsafe.Pointer(cMeta))
+	C.GetAccountTxnIDFromTx((*C.char)(cTx), C.uint(txSize), (*C.char)(cMeta), C.uint(metaSize), C.uint(maxAccount), (*C.char)(unsafe.Pointer(&cbytes[0])), (*C.uint)(unsafe.Pointer(&count)), (*C.uint)(unsafe.Pointer(&txIdx)))
+	C.free(cTx)
+	C.free(cMeta)
 	accountBytes := make([][]byte, count)
 	for i := uint32(0); i < count; i++ {
 		accountBytes[i] = cbytes[i*accountSize : (i+1)*accountSize]
@@ -67,11 +67,11 @@ type NFTData struct {
 	IsBurn    bool
 }
 
-func GetNFT(tx string, txSize uint32, meta string, metaSize uint32, maxCount uint32) ([]NFTTxData, []NFTData) {
+func GetNFT(tx []byte, txSize uint32, meta []byte, metaSize uint32, maxCount uint32) ([]NFTTxData, []NFTData) {
 	const tokenSize = 32   // uint256 -> 32 bytes
 	const accountSize = 20 // AccountId is 160 bits -> 20 bytes
-	cTx := C.CString(tx)
-	cMeta := C.CString(meta)
+	cTx := C.CBytes(tx)
+	cMeta := C.CBytes(meta)
 	var count uint32
 	var txIdx uint32
 	tokens := make([]byte, maxCount*tokenSize)
@@ -81,14 +81,14 @@ func GetNFT(tx string, txSize uint32, meta string, metaSize uint32, maxCount uin
 	var urlExists byte
 	var isBurn byte
 	var taxon uint32
-	C.GetNFTFromTx(cTx, C.uint(txSize), cMeta, C.uint(metaSize),
+	C.GetNFTFromTx((*C.char)(cTx), C.uint(txSize), (*C.char)(cMeta), C.uint(metaSize),
 		C.uint(maxCount), (*C.uint)(unsafe.Pointer(&count)),
 		(*C.uint)(unsafe.Pointer(&txIdx)), (*C.char)(unsafe.Pointer(&tokens[0])),
 		(*C.char)(unsafe.Pointer(&hasTokenChanged)), (*C.char)(unsafe.Pointer(&tokenChangedId[0])),
 		(*C.char)(unsafe.Pointer(&account[0])), (*C.char)(unsafe.Pointer(&urlExists)),
 		(*C.char)(unsafe.Pointer(&isBurn)), (*C.uint)(unsafe.Pointer(&taxon)))
-	C.free(unsafe.Pointer(cTx))
-	C.free(unsafe.Pointer(cMeta))
+	C.free(cTx)
+	C.free(cMeta)
 
 	nftTxs := make([]NFTTxData, count)
 	for i := uint32(0); i < count; i++ {

@@ -38,34 +38,34 @@ func (shamap GoSHAMap) Free() {
 	C.SHAMapFree((C.SHAMap)(unsafe.Pointer(shamap.shamap)))
 }
 
-func (shamap GoSHAMap) AddStateItem(key string, value1 string, size1 uint32) {
-	cKey := C.CString(key)
-	cValue1 := C.CString(value1)
-	C.SHAMapAddStateItem(shamap.shamap, cKey, cValue1, C.uint(size1))
-	C.free(unsafe.Pointer(cKey))
-	C.free(unsafe.Pointer(cValue1))
+func (shamap GoSHAMap) AddStateItem(key []byte, value1 []byte, size1 uint32) {
+	cKey := C.CBytes(key)
+	cValue1 := C.CBytes(value1)
+	C.SHAMapAddStateItem(shamap.shamap, (*C.char)(cKey), (*C.char)(cValue1), C.uint(size1))
+	C.free(cKey)
+	C.free(cValue1)
 }
 
-func (shamap GoSHAMap) AddTxItem(value1 string, size1 uint32, value2 string, size2 uint32) {
-	cValue1 := C.CString(value1)
-	cValue2 := C.CString(value2)
-	C.SHAMapAddTxItem(shamap.shamap, cValue1, C.uint(size1), cValue2, C.uint(size2))
-	C.free(unsafe.Pointer(cValue1))
-	C.free(unsafe.Pointer(cValue2))
+func (shamap GoSHAMap) AddTxItem(value1 []byte, size1 uint32, value2 []byte, size2 uint32) {
+	cValue1 := C.CBytes(value1)
+	cValue2 := C.CBytes(value2)
+	C.SHAMapAddTxItem(shamap.shamap, (*C.char)(cValue1), C.uint(size1), (*C.char)(cValue2), C.uint(size2))
+	C.free(cValue1)
+	C.free(cValue2)
 }
 
-func (shamap GoSHAMap) UpdateStateItem(key string, value string, size uint32) {
-	cKey := C.CString(key)
-	cValue := C.CString(value)
-	C.SHAMapUpdateStateItem(shamap.shamap, cKey, cValue, C.uint(size))
-	C.free(unsafe.Pointer(cKey))
-	C.free(unsafe.Pointer(cValue))
+func (shamap GoSHAMap) UpdateStateItem(key []byte, value []byte, size uint32) {
+	cKey := C.CBytes(key)
+	cValue := C.CBytes(value)
+	C.SHAMapUpdateStateItem(shamap.shamap, (*C.char)(cKey), (*C.char)(cValue), C.uint(size))
+	C.free(cKey)
+	C.free(cValue)
 }
 
-func (shamap GoSHAMap) DeleteKey(key string) {
-	cKey := C.CString(key)
-	C.SHAMapDeleteKey(shamap.shamap, cKey)
-	C.free(unsafe.Pointer(cKey))
+func (shamap GoSHAMap) DeleteKey(key []byte) {
+	cKey := C.CBytes(key)
+	C.SHAMapDeleteKey(shamap.shamap, (*C.char)(cKey))
+	C.free(cKey)
 }
 
 func (shamap GoSHAMap) GetHash() string {
