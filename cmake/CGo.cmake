@@ -69,7 +69,7 @@ macro (cgo_build_envs)
 endmacro ()
 
 macro (cgo_fetch_cflags_and_ldflags)
-  set(LIB_PATHS "${CMAKE_LIBRARY_PATH}")
+  set(LIB_PATHS "${CMAKE_LIBRARY_PATH}" "${CMAKE_BINARY_DIR}/src/etl")
   set(INCLUDES "${CMAKE_INCLUDE_PATH}")
 
   foreach (P ${LIB_PATHS})
@@ -87,7 +87,7 @@ macro (cgo_fetch_cflags_and_ldflags)
     "-L${CMAKE_BINARY_DIR}"
     "-lSHAMap"
     "-lfmt"
-    "-lclio"
+    "-lclio_etl"
     "-lxrpl_core"
     "-led25519"
     "-lsecp256k1"
