@@ -105,7 +105,7 @@ func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []
 				log.Fatalf("Error: %v nf_token_uris reading %x ledger %d", err, nft.TokenId, ledgerIndex)
 			}
 			if count == 0 {
-				log.Printf("Error: nf_token_uris not found for nft %x ledger %dn", nft.TokenId, ledgerIndex)
+				log.Printf("Error: nf_token_uris not found for nft %x ledger %d", nft.TokenId, ledgerIndex)
 			} else {
 				log.Printf("nf_token_uris found for nft %x ledger %d\n", nft.TokenId, ledgerIndex)
 			}
