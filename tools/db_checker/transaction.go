@@ -78,14 +78,10 @@ func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []
 		}
 		if count == 0 {
 			log.Printf("Error: nf_token_transactions not found for nft %x ledger %d txId %d\n", nft.TokenId, ledgerIndex, nft.TxIdx)
-		} else {
-			log.Printf("nf_token_transactions found for nft %x ledger %d txId %d\n", nft.TokenId, ledgerIndex, nft.TxIdx)
 		}
 	}
 
 	for _, nft := range nftData {
-		log.Printf("Changed NFT found for ledger %d txId %d tokenId %x issuer %x urlExists %v isBurn %v\n",
-			ledgerIndex, nft.TxIdx, nft.TokenId, nft.Issuer, nft.UrlExists, nft.IsBurn)
 		//nf_tokens
 		var count int
 		err := session.Query(`select count(*) from nf_tokens where token_id = ? and sequence = ?`, nft.TokenId, ledgerIndex).Scan(&count)
