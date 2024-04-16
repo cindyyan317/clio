@@ -94,8 +94,6 @@ func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []
 		}
 		if count == 0 {
 			log.Printf("Error: nf_tokens not found for nft %x ledger %d\n", nft.TokenId, ledgerIndex)
-		} else {
-			log.Printf("nf_tokens found for nft %x ledger %d\n", nft.TokenId, ledgerIndex)
 		}
 
 		// nf_token_uris and issuer_nf_tokens_v2
@@ -106,8 +104,6 @@ func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []
 			}
 			if count == 0 {
 				log.Printf("Error: nf_token_uris not found for nft %x ledger %d", nft.TokenId, ledgerIndex)
-			} else {
-				log.Printf("nf_token_uris found for nft %x ledger %d\n", nft.TokenId, ledgerIndex)
 			}
 
 			err = session.Query(`select count(*) from issuer_nf_tokens_v2 where issuer = ? and taxon = ? and token_id = ?`,
@@ -117,8 +113,6 @@ func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []
 			}
 			if count == 0 {
 				log.Printf("Error: issuer_nf_tokens_v2 not found for issuer %x taxon %d token_id %x\n", nft.Issuer, nft.Taxon, nft.TokenId)
-			} else {
-				log.Printf("issuer_nf_tokens_v2 found for issuer %x taxon %d token_id %x\n", nft.Issuer, nft.Taxon, nft.TokenId)
 			}
 		}
 
@@ -139,8 +133,6 @@ func checkAccountTx(session *gocql.Session, ledgerIndex uint64, tx []byte, metad
 		}
 		if count == 0 {
 			log.Printf("Error: account_tx not found for account %x ledger %d txId %d\n", account, ledgerIndex, txIdx)
-		} else {
-			log.Printf("account_tx found for account %x ledger %d txId %d\n", account, ledgerIndex, txIdx)
 		}
 	}
 }
