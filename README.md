@@ -47,3 +47,17 @@ Below are some useful docs to learn more about Clio.
 
 Feel free to open an [issue](https://github.com/XRPLF/clio/issues) if you have a feature request or something doesn't work as expected.
 If you have any questions about building, running, contributing, using Clio or any other, you could always start a new [discussion](https://github.com/XRPLF/clio/discussions).
+
+##  Regarding this branch
+This branch will generate a data validation tool which can check the integrity of Clio's database cryptographically.
+The tool is located in "tools/db_checker" after building Clio normally.
+It can check ledger states and transactions, also it can check other indexing tables Clio is using, like account_tx, ledger_hashes.
+The tool is developed in go, please install go before building it.
+To check the states for ledger SEQ, you can use the following command:
+```
+./tools/db_checker/db_checker --objects --keyspace clio --fromLedgerIdx SEQ  --toLedgerIdx SEQ 127.0.0.1
+```
+To check the transactions for ledger SEQ, you can use the following command:
+```
+./tools/db_checker/db_checker --tx --keyspace clio --fromLedgerIdx 0  --toLedgerIdx 0 --step 2 127.0.0.1
+```
