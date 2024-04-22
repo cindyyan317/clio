@@ -44,7 +44,7 @@ func LoadStatesFromCursor(cluster *gocql.ClusterConfig, stateMap *shamap.GoSHAMa
 				log.Fatal(err)
 			}
 			if len(object) == 0 {
-				log.Printf("Error: wrong object fetched %x for seq %d", from, ledgerIndex)
+				log.Fatalf("Error: wrong object fetched %x for seq %d", from, ledgerIndex)
 			}
 			// add in shamap
 			statesMapMutex.Lock()
