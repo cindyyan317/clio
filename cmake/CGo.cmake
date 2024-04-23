@@ -39,7 +39,7 @@ macro (add_cgo_executable GO_MOD_NAME GO_FILES CGO_DEPS GO_BIN)
     COMMAND ${CMAKE_COMMAND} -E remove ${CGO_BUILT_FLAG}
     COMMAND env ${CGO_ENVS} go build -a -o ${GO_BIN} ./...
     COMMAND touch ${CGO_BUILT_FLAG}
-    DEPENDS SHAMap
+    DEPENDS SHAMap clio_etl
   )
   add_custom_target(${GO_MOD_NAME}_cgo ALL DEPENDS ${CGO_BUILT_FLAG})
 

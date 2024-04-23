@@ -26,6 +26,7 @@ class Clio(ConanFile):
         'fmt/10.1.1',
         'protobuf/3.21.12',
         'grpc/1.50.1',
+        'zlib/1.3.1',
         'openssl/1.1.1u',
         'xrpl/2.2.0-b1',
         'libbacktrace/cci.20210118'
