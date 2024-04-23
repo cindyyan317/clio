@@ -63,7 +63,8 @@ type NFTData struct {
 	TokenId   []byte
 	Issuer    []byte
 	Taxon     uint32
-	UrlExists bool
+	UriExists bool
+	Uri       []byte
 	IsBurn    bool
 }
 
@@ -78,17 +79,16 @@ func GetNFT(tx []byte, txSize uint32, meta []byte, metaSize uint32, maxCount uin
 	var hasTokenChanged byte
 	tokenChangedId := make([]byte, tokenSize)
 	account := make([]byte, accountSize)
-	var urlExists byte
+	var uriExists byte
+	var uriLen uint32
 	var isBurn byte
 	var taxon uint32
 	C.GetNFTFromTx((*C.char)(cTx), C.uint(txSize), (*C.char)(cMeta), C.uint(metaSize),
 		C.uint(maxCount), (*C.uint)(unsafe.Pointer(&count)),
 		(*C.uint)(unsafe.Pointer(&txIdx)), (*C.char)(unsafe.Pointer(&tokens[0])),
 		(*C.char)(unsafe.Pointer(&hasTokenChanged)), (*C.char)(unsafe.Pointer(&tokenChangedId[0])),
-		(*C.char)(unsafe.Pointer(&account[0])), (*C.char)(unsafe.Pointer(&urlExists)),
+		(*C.char)(unsafe.Pointer(&account[0])), (*C.char)(unsafe.Pointer(&uriExists)), (*C.uint)(unsafe.Pointer(&uriLen)),
 		(*C.char)(unsafe.Pointer(&isBurn)), (*C.uint)(unsafe.Pointer(&taxon)))
-	C.free(cTx)
-	C.free(cMeta)
 
 	nftTxs := make([]NFTTxData, count)
 	for i := uint32(0); i < count; i++ {
@@ -101,9 +101,17 @@ func GetNFT(tx []byte, txSize uint32, meta []byte, metaSize uint32, maxCount uin
 	if hasTokenChanged == 1 {
 		nft = append(nft, NFTData{TokenId: tokenChangedId, Issuer: account, TxIdx: txIdx})
 		nft[0].IsBurn = isBurn == 1
-		nft[0].UrlExists = urlExists == 1
+		nft[0].UriExists = uriExists == 1
 		nft[0].Taxon = taxon
-
+		if nft[0].UriExists {
+			uri := make([]byte, uriLen)
+			if uriLen != 0 {
+				C.GetUriFromTx((*C.char)(cTx), C.uint(txSize), (*C.char)(cMeta), C.uint(metaSize), (*C.char)(unsafe.Pointer(&uri[0])))
+			}
+			nft[0].Uri = uri
+		}
 	}
+	C.free(cTx)
+	C.free(cMeta)
 	return nftTxs, nft
 }

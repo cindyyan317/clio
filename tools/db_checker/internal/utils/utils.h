@@ -31,15 +31,19 @@ GetNFTFromTx(
     unsigned int metaSize,
     unsigned int maxCount,
     unsigned int* count,
-    unsigned int* txIdxs,  // nft tx index list
-    char* nftTokenIds,     // affected nft token id list
-    char* tokenChanged,    // if has token changed
-    char* nftChangedId,    // changed nft token id
-    char* issuer,          // nft issuer
-    char* urlExists,       // if nft url exists
-    char* isBurned,        // if nft burned
+    unsigned int* txIdxs,   // nft tx index list
+    char* nftTokenIds,      // affected nft token id list
+    char* tokenChanged,     // if has token changed
+    char* nftChangedId,     // changed nft token id
+    char* issuer,           // nft issuer
+    char* uriExists,        // if nft uri exists
+    unsigned int* uriSize,  // uri length
+    char* isBurned,         // if nft burned
     unsigned int* taxon
 );
+
+void
+GetUriFromTx(char* txBlob, unsigned int txSize, char* metaBlob, unsigned int metaSize, char* uri);
 
 #ifdef __cplusplus
 }

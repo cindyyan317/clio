@@ -79,7 +79,8 @@ GetNFTFromTx(
     char* tokenChanged,
     char* nftChangedId,
     char* issuer,
-    char* urlExists,
+    char* uriExists,
+    unsigned int* uriSize,
     char* isBurned,
     unsigned int* taxon
 )
@@ -103,8 +104,24 @@ GetNFTFromTx(
         std::memcpy(nftChangedId, maybeNft->tokenID.data(), ripple::uint256::size());
         auto const nftIssuer = ripple::nft::getIssuer(maybeNft->tokenID);
         std::memcpy(issuer, nftIssuer.data(), ripple::AccountID::size());
-        *urlExists = maybeNft->uri.has_value() ? 1 : 0;
+        *uriExists = maybeNft->uri.has_value() ? 1 : 0;
+        if (maybeNft->uri) {
+            *uriSize = maybeNft->uri->size();
+        }
         *isBurned = maybeNft->isBurned ? 1 : 0;
         *taxon = static_cast<uint32_t>(ripple::nft::getTaxon(maybeNft->tokenID));
+    }
+}
+
+void
+GetUriFromTx(char* txBlob, unsigned int txSize, char* metaBlob, unsigned int metaSize, char* uri)
+{
+    ripple::Slice slice{txBlob, (size_t)txSize};
+    ripple::STTx txn(slice);
+    ripple::SerialIter meta{metaBlob, (size_t)metaSize};
+    ripple::TxMeta txMeta{txn.getTransactionID(), 0, ripple::STObject(meta, ripple::sfMetadata)};
+    auto [nftTxData, maybeNft] = etl::getNFTDataFromTx(txMeta, txn);
+    if (maybeNft && maybeNft->uri) {
+        std::memcpy(uri, maybeNft->uri->data(), maybeNft->uri->size());
     }
 }

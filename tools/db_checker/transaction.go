@@ -9,7 +9,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
-func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skipSha bool, skipAccountTxCheck bool, skipNFT bool) string {
+func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skipSha bool, skipAccountTxCheck bool, skipNFT bool, fixNFTUri bool) string {
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Fatal(err)
@@ -49,7 +49,7 @@ func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skip
 			checkAccountTx(session, ledgerIndex, tx, metadata)
 		}
 		if !skipNFT {
-			checkNFT(session, ledgerIndex, tx, metadata)
+			checkNFT(session, ledgerIndex, tx, metadata, fixNFTUri)
 		}
 	}
 	hashFromMap := ""
@@ -60,7 +60,7 @@ func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skip
 	return hashFromMap
 }
 
-func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []byte) {
+func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []byte, fixUri bool) {
 	// It may have multiple nft tx in one transaction, eg cancel offers
 	const MAX_ITEM = 100
 	nftTxData, nftData := utils.GetNFT(tx, uint32(len(tx)), metadata, uint32(len(metadata)), MAX_ITEM)
@@ -93,13 +93,26 @@ func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []
 		}
 
 		// nf_token_uris and issuer_nf_tokens_v2
-		if nft.UrlExists {
+		if nft.UriExists {
 			err := session.Query(`select count(*) from nf_token_uris where token_id = ? and sequence = ?`, nft.TokenId, ledgerIndex).Scan(&count)
 			if err != nil {
 				log.Fatalf("Error: %v nf_token_uris reading %x ledger %d", err, nft.TokenId, ledgerIndex)
 			}
 			if count == 0 {
-				log.Printf("Error: nf_token_uris not found for nft %x ledger %d", nft.TokenId, ledgerIndex)
+				log.Printf("Error: nf_token_uris not found for nft %x ledger %d\n", nft.TokenId, ledgerIndex)
+				if fixUri {
+					err = session.Query("insert into nf_token_uris (token_id, sequence, uri) values (?, ?, ?)", nft.TokenId, ledgerIndex, nft.Uri).Exec()
+					if err != nil {
+						log.Fatalf("Error: nf_token_uris insert %x uri: %x : %d, %v", nft.TokenId, nft.Uri, ledgerIndex, err)
+					}
+					// double confirm if the insert is successful
+					session.Query(`select count(*) from nf_token_uris where token_id = ? and sequence = ?`, nft.TokenId, ledgerIndex).Scan(&count)
+					if count == 1 {
+						log.Printf("Success: nf_token_uris fixed %x uri: %x : %d", nft.TokenId, nft.Uri, ledgerIndex)
+					} else {
+						log.Printf("Failed: nf_token_uris fixed %x uri: %x : %d", nft.TokenId, nft.Uri, ledgerIndex)
+					}
+				}
 			}
 
 			err = session.Query(`select count(*) from issuer_nf_tokens_v2 where issuer = ? and taxon = ? and token_id = ?`,
@@ -154,7 +167,7 @@ func getHashesFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 	return stateHash, txHash
 }
 
-func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int, skipSHA bool, skipAccount bool, skipNFT bool) uint64 {
+func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int, skipSHA bool, skipAccount bool, skipNFT bool, fixNFTUri bool) uint64 {
 	ledgerIndex := endLedgerIndex
 	var mismatch uint64 = 0
 
@@ -167,7 +180,7 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 		for i := 0; i < thisStep; i++ {
 			seq := ledgerIndex - uint64(i)
 			go func() {
-				txHashFromDB := TraverseTxHashFromDB(cluster, seq, skipSHA, skipAccount, skipNFT)
+				txHashFromDB := TraverseTxHashFromDB(cluster, seq, skipSHA, skipAccount, skipNFT, fixNFTUri)
 
 				if !skipSHA {
 					_, txHash := getHashesFromLedgerHeader(cluster, seq)

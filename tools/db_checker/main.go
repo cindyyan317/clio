@@ -48,6 +48,7 @@ var (
 	//skip nft or account_tx check
 	txSkipNFT     = kingpin.Flag("txSkipNFT", "Whether to skip NFT check for tx validation").Default("false").Bool()
 	txSkipAccount = kingpin.Flag("txSkipAccount", "Whether to skip account_tx check for tx validation").Default("false").Bool()
+	NFTUriFix     = kingpin.Flag("NFTUriFix", "Whether to fix NFT uri").Default("false").Bool()
 
 	//----------------objects + successor----------------
 	cursors = kingpin.Flag("cursors", "Set the diff numbers to be used to loading ledger in parallel").Short('d').Default("16").Uint32()
@@ -127,7 +128,7 @@ func main() {
 	} else if *tx {
 		go func() {
 			log.Printf("Checking tx from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
-			mismatch := checkingTransactionsFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *step, *txSkipSha, *txSkipAccount, *txSkipNFT)
+			mismatch := checkingTransactionsFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *step, *txSkipSha, *txSkipAccount, *txSkipNFT, *NFTUriFix)
 			mismatchCh <- mismatch
 		}()
 	} else if *ledgerHash || *ledgerHashFix {
