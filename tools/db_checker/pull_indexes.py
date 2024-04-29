@@ -1,15 +1,11 @@
 # This script is used to pull all entities indexes from a ledger. It is just for assisting debug.
-import http.client
 import json
 from websockets.sync.client import connect
-import subprocess
 import sys
 
-# the source of data
-URL_WS = 'ws://localhost:6006'
 
-def get_ledger_data(ledger, marker=None):
-    with connect(URL_WS) as websocket:
+def get_ledger_data(ws, ledger, marker=None):
+    with connect(ws) as websocket:
         s = r'{"command": "ledger_data", "binary": true, "ledger_index": ' + ledger + r'}'
         if marker:
             s = r'{"command": "ledger_data", "binary": true, "ledger_index": ' + ledger + r', "marker": "' + marker + r'"}'
@@ -20,15 +16,16 @@ def get_ledger_data(ledger, marker=None):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print('Usage: python3 pull_indexes.py <ledger_index>')
+    if len(sys.argv) < 3:
+        print('Usage: python3 pull_indexes.py <ws_url> <ledger_index>')
         sys.exit(1)
-    ledger = sys.argv[1]
-    print('Pull ledger_data from: ',ledger)
+    ledger = sys.argv[2]
+    url = sys.argv[1]
+    print('Pull ledger_data from: ',ledger, ' url: ', url)
 
     marker = None
     while True:
-        ledger_data = get_ledger_data(ledger, marker)
+        ledger_data = get_ledger_data(url,ledger, marker)
         json_data = json.loads(ledger_data)
         if 'result' not in json_data or 'status' not in json_data or json_data['status'] != "success":
             print('Error: ', json_data)

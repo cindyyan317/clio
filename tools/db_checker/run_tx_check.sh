@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script is used to fix the ledgerhash in the database. 
+# This script is used to fix the tx in the database. 
 # parameters: db_checker location and the start seq
 
 if [ $# -ne 2 ]; then
