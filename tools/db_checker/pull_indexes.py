@@ -5,10 +5,10 @@ import sys
 
 
 def get_ledger_data(ws, ledger, marker=None):
-    with connect(ws) as websocket:
-        s = r'{"command": "ledger_data", "limit" : 1024, "binary": true, "ledger_index": ' + ledger + r'}'
+    with connect(ws, max_size=None) as websocket:
+        s = r'{"command": "ledger_data", "binary": true, "ledger_index": ' + ledger + r'}'
         if marker:
-            s = r'{"command": "ledger_data", "limit" : 1024, "binary": true, "ledger_index": ' + ledger + r', "marker": "' + marker + r'"}'
+            s = r'{"command": "ledger_data",  "binary": true, "ledger_index": ' + ledger + r', "marker": "' + marker + r'"}'
         websocket.send(s)
         message = websocket.recv()
         return message
