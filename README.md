@@ -76,13 +76,13 @@ To check the states incrementally, you can use the following command:
 ```
 
 ### Transactions
-Clio stores all transactions metadata in the **transactions** table. To verify the transactions for one ledger cryptographically, we need to find all the transactions of the ledger in ledger_transactions table and add the transactions binary to SHAMap. After verifying the **transactions** and **ledger_transactions**table, we can start to verify other indexing tables, Eg nf_tokens, account_tx.
+Clio stores all transactions metadata in the **transactions** table. To verify the transactions for one ledger cryptographically, we need to find all the transactions of the ledger in ledger_transactions table and add the transactions binary to SHAMap. After verifying the **transactions** and **ledger_transactions** table, we can start to verify other indexing tables, such as nf_tokens, account_tx.
 
 *Be aware the transactions check is much faster than states check, it also requires less bandwidth of database. This tool can do multiple transactions check concurrently, using --step to specify the number of transactions check concurrently*
 
 To check the transactions for ledger SEQ, you can use the following command:
 ```
-./tools/db_checker/db_checker --tx --keyspace clio --fromLedgerIdx SEQ  --toLedgerIdx SEQ --step 2 127.0.0.1
+./tools/db_checker/db_checker --tx --keyspace clio --fromLedgerIdx SEQ  --toLedgerIdx SEQ 127.0.0.1
 ```
 To check the transactions in range [SEQ1, SEQ2], you can use the following command:
 ```
@@ -125,6 +125,7 @@ we can use this tool to find the newest valid ledger and use cassandra_delete_ra
 ---
 This tool also provides parameters to control the database access,eg auth, timeout and the number of concurrent database requests.
 Please see the help message for more details.
+
 Please refer to the shell scripts in the tools/db_checker folder for more examples[^1].
 | file  | usage  | detail  |
 |---|---|---|
