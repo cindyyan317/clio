@@ -49,15 +49,74 @@ Feel free to open an [issue](https://github.com/XRPLF/clio/issues) if you have a
 If you have any questions about building, running, contributing, using Clio or any other, you could always start a new [discussion](https://github.com/XRPLF/clio/discussions).
 
 ##  Regarding this branch
+Clio stores the ledger in a flat format in the database, which is more efficient to query. But it also brings the risk of data corruption. Data corruption can happen due to various reasons, like hardware failure, database migration issue or Clio's bug. 
 This branch will generate a data validation tool which can check the integrity of Clio's database cryptographically.
 The tool is located in "tools/db_checker" after building Clio normally.
 It can check ledger states and transactions, also it can check other indexing tables Clio is using, like account_tx, ledger_hashes.
 The tool is developed in go, please install go before building it.
+
+There are two major data to check, states and transactions.
+
+### States
+States are the ledger entities that are stored in the **objects** / **successor** / **diff** tables.
+To verify the states for one ledger, we need to traverse the linked list formed by the **successor** table and add the actual entities binary (for **objects**) to SHAMap to verify the integrity of the ledger states.
+The **diff** table stores the changed entities indexes of the ledger, After we have verified a valid ledger, we can add the changed entities to SHAMap to verify the states incrementally. But this will skip the **successor** table validation.
+
+*Be aware the states check can overwhelm database, using --cursors to adjust the concurrent database requests*
+
+
 To check the states for ledger SEQ, you can use the following command:
 ```
 ./tools/db_checker/db_checker --objects --keyspace clio --fromLedgerIdx SEQ  --toLedgerIdx SEQ 127.0.0.1
+
 ```
+To check the states incrementally, you can use the following command:
+```
+./tools/db_checker/db_checker --diff --keyspace clio --fromLedgerIdx SEQ  --toLedgerIdx OTHER_SEQ 127.0.0.1
+```
+
+### Transactions
+Clio stores all transactions metadata in the **transactions** table. To verify the transactions for one ledger cryptographically, we need to find the transactions of the ledger in ledger_transactions table and then add the transactions binary to SHAMap to verify the integrity of the transactions for this ledger. After verifying the **transactions** and **ledger_transactions**table, we can start to verify other indexing tables, Eg nf_tokens, account_tx.
+
+*Be aware the transactions check is much faster than states check, it also requires less bandwidth of database. This tool can do multiple transactions check concurrently, using --step to specify the number of transactions check concurrently*
+
 To check the transactions for ledger SEQ, you can use the following command:
 ```
-./tools/db_checker/db_checker --tx --keyspace clio --fromLedgerIdx 0  --toLedgerIdx 0 --step 2 127.0.0.1
+./tools/db_checker/db_checker --tx --keyspace clio --fromLedgerIdx SEQ  --toLedgerIdx SEQ --step 2 127.0.0.1
 ```
+To check the transactions in range [SEQ1, SEQ2], you can use the following command:
+```
+./tools/db_checker/db_checker --tx --keyspace clio --fromLedgerIdx SEQ1  --toLedgerIdx SEQ2 --step 2 127.0.0.1
+```
+To skip the cryptographic check, you can use the following command:
+```
+./tools/db_checker/db_checker --tx --txSkipSha --keyspace clio --fromLedgerIdx SEQ1  --toLedgerIdx SEQ2 --step 2 127.0.0.1
+```
+By adding --txSkipNFT to the command, the tool will skip checking the nft related table, including **nf_tokens**, **issuer_nf_tokens_v2**, **nf_token_uris** and **nf_token_transactions**.
+By adding --txSkipAccount to the command, the tool will skip checking the account related table, including **account_tx**.
+To check the **ledger_hashes** table, you can use the following command:
+```
+./tools/db_checker/db_checker --ledgerHash --keyspace clio --fromLedgerIdx SEQ1  --toLedgerIdx SEQ2 --step 2
+```
+
+### Fix corrupted data
+When corrupted data is found, you can see the corrupted data in the log.
+This tool provides a way to fix the corrupted data of **ledger_hashes** table and **nf_token_uris** table in place. Please take these two as examples, if you want to fix other tables.
+
+To fix the corrupted data of **ledger_hashes** table, you can use the following command:
+```
+./tools/db_checker/db_checker --ledgerHashFix --keyspace clio --fromLedgerIdx SEQ1  --toLedgerIdx SEQ2 --step 2 127.0.0.1
+```
+
+To fix the corrupted data of **nf_token_uris** table, you can use the following command:
+```
+./tools/db_checker/db_checker --tx --NFTUriFix --keyspace clio --fromLedgerIdx SEQ1  --toLedgerIdx SEQ2 --step 2 127.0.0.1
+
+```
+If the corruption happens to the non-indexing table unfortunately, we have to obtain the correct data from other trust sources. 
+*fix_transaction.py* provides an example to fix the corrupted **transactions** by obtaining the data from xrplcluster rippled.
+
+---
+This tool also provides parameters to control the database access,eg auth, timeout and the number of concurrent database requests.
+Please see the help message for more details.
+
