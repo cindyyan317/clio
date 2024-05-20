@@ -27,7 +27,7 @@ while [ $start_seq -gt 0 ]; do
     echo "Fixing ledgerhash from $start_seq to $end_seq"
     $db_checker --tx --NFTUriFix --username $username --password $password --keyspace $keyspace --fromLedgerIdx $end_seq  --toLedgerIdx $start_seq --step $db_step $db_cluster > ~/fix_ledgerhash_${end_seq}_${start_seq}.log 2>&1 
     if [ $? -ne 0 ]; then
-        echo "Failed to fix ledgerhash from $start_seq to $end_seq"
+        echo "Failed to fix nf_token_uris from $start_seq to $end_seq"
         exit 1
     fi
     start_seq=$end_seq
