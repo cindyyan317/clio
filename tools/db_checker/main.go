@@ -55,7 +55,8 @@ var (
 	objects = kingpin.Flag("objects", "Whether to do objects validation").Default("false").Bool()
 
 	//----------------diff table---------------
-	diff = kingpin.Flag("diff", "Whether to do diff table validation").Default("false").Bool()
+	diff   = kingpin.Flag("diff", "Whether to do diff table validation").Default("false").Bool()
+	diffTx = kingpin.Flag("diffTx", "Whether to do diff table validation from Tx").Default("false").Bool()
 
 	//----------------ledger_hash table----------------
 	ledgerHash    = kingpin.Flag("ledgerHash", "Whether to do ledger_hash table validation").Default("false").Bool()
@@ -128,7 +129,7 @@ func main() {
 	} else if *tx {
 		go func() {
 			log.Printf("Checking tx from range: %d to %d\n", *fromLedgerIdx, *toLedgerIdx)
-			mismatch := checkingTransactionsFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *step, *txSkipSha, *txSkipAccount, *txSkipNFT, *NFTUriFix)
+			mismatch := checkingTransactionsFromLedger(cluster, *fromLedgerIdx, *toLedgerIdx, *step, *txSkipSha, *txSkipAccount, *txSkipNFT, *NFTUriFix, *diffTx)
 			mismatchCh <- mismatch
 		}()
 	} else if *ledgerHash || *ledgerHashFix {

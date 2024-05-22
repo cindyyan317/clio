@@ -1,13 +1,20 @@
 #include "utils.h"
 
 #include <etl/NFTHelpers.hpp>
+#include <ripple/basics/Slice.h>
+#include <ripple/basics/base_uint.h>
 #include <ripple/protocol/AccountID.h>
 #include <ripple/protocol/LedgerHeader.h>
+#include <ripple/protocol/SField.h>
+#include <ripple/protocol/STObject.h>
 #include <ripple/protocol/STTx.h>
+#include <ripple/protocol/Serializer.h>
 #include <ripple/protocol/TxMeta.h>
 #include <ripple/protocol/nft.h>
 
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
 
 void
 GetStatesHashFromLedgerHeader(char* ledgerHeaderBlob, int size, char* hash)
@@ -123,5 +130,43 @@ GetUriFromTx(char* txBlob, unsigned int txSize, char* metaBlob, unsigned int met
     auto [nftTxData, maybeNft] = etl::getNFTDataFromTx(txMeta, txn);
     if (maybeNft && maybeNft->uri) {
         std::memcpy(uri, maybeNft->uri->data(), maybeNft->uri->size());
+    }
+}
+
+void
+GetDiffFromTx(
+    char* txBlob,
+    unsigned int txSize,
+    char* metaBlob,
+    unsigned int metaSize,
+    unsigned int maxNode,
+    unsigned int* createdNum,
+    char* createdIndexes,
+    unsigned int* deletedNum,
+    char* deletedIndexes,
+    unsigned int* updatedNum,
+    char* updatedIndexes
+)
+{
+    ripple::Slice slice{txBlob, (size_t)txSize};
+    ripple::STTx txn(slice);
+    ripple::SerialIter meta{metaBlob, (size_t)metaSize};
+    ripple::TxMeta txMeta{txn.getTransactionID(), 0, ripple::STObject(meta, ripple::sfMetadata)};
+
+    *createdNum = 0;
+    *deletedNum = 0;
+    *updatedNum = 0;
+    for (auto const& node : txMeta.getNodes()) {
+        auto const index = node.getFieldH256(ripple::sfLedgerIndex);
+        if ((*createdNum) < maxNode && node.getFName() == ripple::sfCreatedNode) {
+            std::memcpy(&createdIndexes[*createdNum * ripple::uint256::size()], index.data(), ripple::uint256::size());
+            (*createdNum)++;
+        } else if ((*deletedNum) < maxNode && node.getFName() == ripple::sfDeletedNode) {
+            std::memcpy(&deletedIndexes[*deletedNum * ripple::uint256::size()], index.data(), ripple::uint256::size());
+            (*deletedNum)++;
+        } else if ((*updatedNum) < maxNode && node.getFName() == ripple::sfModifiedNode) {
+            std::memcpy(&updatedIndexes[*updatedNum * ripple::uint256::size()], index.data(), ripple::uint256::size());
+            (*updatedNum)++;
+        }
     }
 }

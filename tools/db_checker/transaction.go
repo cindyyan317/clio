@@ -9,7 +9,7 @@ import (
 	"github.com/gocql/gocql"
 )
 
-func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skipSha bool, skipAccountTxCheck bool, skipNFT bool, fixNFTUri bool) string {
+func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skipSha bool, skipAccountTxCheck bool, skipNFT bool, fixNFTUri bool, skipDiff bool) string {
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Fatal(err)
@@ -51,6 +51,9 @@ func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skip
 		if !skipNFT {
 			checkNFT(session, ledgerIndex, tx, metadata, fixNFTUri)
 		}
+		if !skipDiff {
+			checkDiff(session, ledgerIndex, tx, metadata)
+		}
 	}
 	hashFromMap := ""
 	if !skipSha {
@@ -58,6 +61,22 @@ func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skip
 		ptrTxMap.Free()
 	}
 	return hashFromMap
+}
+
+func checkDiff(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []byte) {
+	const MAX_ITEM = 100
+	diffData := utils.GetDiffs(tx, uint32(len(tx)), metadata, uint32(len(metadata)), MAX_ITEM)
+	log.Println("Tx")
+
+	for _, diff := range diffData.CreatedIndexes {
+		log.Printf("Diff: CreatedIndexes %x ledger %d\n", diff, ledgerIndex)
+	}
+	for _, diff := range diffData.DeletedIndexes {
+		log.Printf("Diff: DeletedIndexes %x ledger %d\n", diff, ledgerIndex)
+	}
+	for _, diff := range diffData.UpdatedIndexes {
+		log.Printf("Diff: UpdatedIndexes %x ledger %d\n", diff, ledgerIndex)
+	}
 }
 
 func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []byte, fixUri bool) {
@@ -167,7 +186,7 @@ func getHashesFromLedgerHeader(cluster *gocql.ClusterConfig, ledgerIndex uint64)
 	return stateHash, txHash
 }
 
-func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int, skipSHA bool, skipAccount bool, skipNFT bool, fixNFTUri bool) uint64 {
+func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int, skipSHA bool, skipAccount bool, skipNFT bool, fixNFTUri bool, skipDiff bool) uint64 {
 	ledgerIndex := endLedgerIndex
 	var mismatch uint64 = 0
 
@@ -180,7 +199,7 @@ func checkingTransactionsFromLedger(cluster *gocql.ClusterConfig, startLedgerInd
 		for i := 0; i < thisStep; i++ {
 			seq := ledgerIndex - uint64(i)
 			go func() {
-				txHashFromDB := TraverseTxHashFromDB(cluster, seq, skipSHA, skipAccount, skipNFT, fixNFTUri)
+				txHashFromDB := TraverseTxHashFromDB(cluster, seq, skipSHA, skipAccount, skipNFT, fixNFTUri, skipDiff)
 
 				if !skipSHA {
 					_, txHash := getHashesFromLedgerHeader(cluster, seq)

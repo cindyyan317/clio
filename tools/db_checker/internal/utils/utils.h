@@ -45,6 +45,21 @@ GetNFTFromTx(
 void
 GetUriFromTx(char* txBlob, unsigned int txSize, char* metaBlob, unsigned int metaSize, char* uri);
 
+void
+GetDiffFromTx(
+    char* txBlob,
+    unsigned int txSize,
+    char* metaBlob,
+    unsigned int metaSize,
+    unsigned int maxNode,
+    unsigned int* createdNum,
+    char* createdIndexes,
+    unsigned int* deletedNum,
+    char* deletedIndexes,
+    unsigned int* updatedNum,
+    char* updatedIndexes
+);
+
 #ifdef __cplusplus
 }
 #endif

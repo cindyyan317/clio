@@ -115,3 +115,44 @@ func GetNFT(tx []byte, txSize uint32, meta []byte, metaSize uint32, maxCount uin
 	C.free(cMeta)
 	return nftTxs, nft
 }
+
+type Diffs struct {
+	CreatedIndexes [][]byte
+	DeletedIndexes [][]byte
+	UpdatedIndexes [][]byte
+}
+
+func GetDiffs(tx []byte, txSize uint32, meta []byte, metaSize uint32, maxCount uint32) Diffs {
+	cTx := C.CBytes(tx)
+	cMeta := C.CBytes(meta)
+
+	const tokenSize = 32 // uint256 -> 32 bytes
+	createdIndexes := make([]byte, maxCount*tokenSize)
+	deletedIndexes := make([]byte, maxCount*tokenSize)
+	updatedIndexes := make([]byte, maxCount*tokenSize)
+
+	var createdCount uint32
+	var deletedCount uint32
+	var updatedCount uint32
+	C.GetDiffFromTx((*C.char)(cTx), C.uint(txSize), (*C.char)(cMeta), C.uint(metaSize), C.uint(maxCount),
+		(*C.uint)(unsafe.Pointer(&createdCount)), (*C.char)(unsafe.Pointer(&createdIndexes[0])),
+		(*C.uint)(unsafe.Pointer(&deletedCount)), (*C.char)(unsafe.Pointer(&deletedIndexes[0])),
+		(*C.uint)(unsafe.Pointer(&updatedCount)), (*C.char)(unsafe.Pointer(&updatedIndexes[0])))
+
+	var diff Diffs
+	diff.CreatedIndexes = make([][]byte, createdCount)
+	for i := uint32(0); i < createdCount; i++ {
+		diff.CreatedIndexes[i] = createdIndexes[i*tokenSize : (i+1)*tokenSize]
+	}
+	diff.DeletedIndexes = make([][]byte, deletedCount)
+	for i := uint32(0); i < deletedCount; i++ {
+		diff.DeletedIndexes[i] = deletedIndexes[i*tokenSize : (i+1)*tokenSize]
+	}
+	diff.UpdatedIndexes = make([][]byte, updatedCount)
+	for i := uint32(0); i < updatedCount; i++ {
+		diff.UpdatedIndexes[i] = updatedIndexes[i*tokenSize : (i+1)*tokenSize]
+	}
+	C.free(cTx)
+	C.free(cMeta)
+	return diff
+}
