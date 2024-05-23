@@ -4,6 +4,7 @@ import (
 	"internal/shamap"
 	"internal/utils"
 	"log"
+	"slices"
 	"sync"
 
 	"github.com/gocql/gocql"
@@ -35,6 +36,9 @@ func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skip
 	}
 	var tx []byte
 	var metadata []byte
+	var createdIndexes [][]byte
+	var deletedIndexes [][]byte
+	var updatedIndexes [][]byte
 	for _, hash := range hashes {
 		err = session.Query(`select transaction,metadata from transactions where hash = ?`,
 			hash).Scan(&tx, &metadata)
@@ -52,9 +56,34 @@ func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skip
 			checkNFT(session, ledgerIndex, tx, metadata, fixNFTUri)
 		}
 		if !skipDiff {
-			checkDiff(session, ledgerIndex, tx, metadata)
+			diff := checkDiff(session, ledgerIndex, tx, metadata)
+			createdIndexes = append(createdIndexes, diff.CreatedIndexes...)
+			deletedIndexes = append(deletedIndexes, diff.DeletedIndexes...)
+			updatedIndexes = append(updatedIndexes, diff.UpdatedIndexes...)
 		}
 	}
+
+	//diff check
+	if !skipDiff {
+		// find the indexes created and deleted in the same ledger , these are not diffs
+		var notExistIndexes map[[32]byte]int
+		for _, created := range createdIndexes {
+			for _, deleted := range deletedIndexes {
+				if slices.Compare(created, deleted) == 0 {
+					log.Printf("Not exist index in ledger %d: %x\n", ledgerIndex, created)
+					notExistIndexes[[32]byte(created)] = 1
+				}
+			}
+		}
+
+		allIndexes := append(append(createdIndexes, deletedIndexes...), updatedIndexes...)
+		for _, index := range allIndexes {
+			if _, ok := notExistIndexes[[32]byte(index)]; !ok {
+
+			}
+		}
+	}
+
 	hashFromMap := ""
 	if !skipSha {
 		hashFromMap = ptrTxMap.GetHash()
@@ -63,10 +92,12 @@ func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skip
 	return hashFromMap
 }
 
-func checkDiff(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []byte) {
+func checkDiff(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []byte) utils.Diffs {
 	const MAX_ITEM = 100
 	diffData := utils.GetDiffs(tx, uint32(len(tx)), metadata, uint32(len(metadata)), MAX_ITEM)
-	log.Println("Tx")
+	if len(diffData.CreatedIndexes) == MAX_ITEM || len(diffData.DeletedIndexes) == MAX_ITEM || len(diffData.UpdatedIndexes) == MAX_ITEM {
+		log.Printf("Error: too many diffs in tx from ledger %d", ledgerIndex)
+	}
 
 	for _, diff := range diffData.CreatedIndexes {
 		log.Printf("Diff: CreatedIndexes %x ledger %d\n", diff, ledgerIndex)
@@ -77,6 +108,7 @@ func checkDiff(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata [
 	for _, diff := range diffData.UpdatedIndexes {
 		log.Printf("Diff: UpdatedIndexes %x ledger %d\n", diff, ledgerIndex)
 	}
+	return diffData
 }
 
 func checkNFT(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata []byte, fixUri bool) {
