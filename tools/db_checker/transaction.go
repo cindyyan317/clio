@@ -66,11 +66,11 @@ func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skip
 	//diff check
 	if !skipDiff {
 		// find the indexes created and deleted in the same ledger , these are not diffs
-		var notExistIndexes map[[32]byte]int
+		notExistIndexes := make(map[[32]byte]int)
 		for _, created := range createdIndexes {
 			for _, deleted := range deletedIndexes {
 				if slices.Compare(created, deleted) == 0 {
-					log.Printf("Not exist index in ledger %d: %x\n", ledgerIndex, created)
+					log.Printf("Index created and deleted in ledger %d: %x\n", ledgerIndex, created)
 					notExistIndexes[[32]byte(created)] = 1
 				}
 			}
@@ -79,7 +79,14 @@ func TraverseTxHashFromDB(cluster *gocql.ClusterConfig, ledgerIndex uint64, skip
 		allIndexes := append(append(createdIndexes, deletedIndexes...), updatedIndexes...)
 		for _, index := range allIndexes {
 			if _, ok := notExistIndexes[[32]byte(index)]; !ok {
-
+				var count int
+				err := session.Query(`select count(*) from diff where seq = ? and key = ?`, ledgerIndex, index).Scan(&count)
+				if err != nil {
+					log.Fatalf("Error: %v diff reading ledger %d index %x", err, ledgerIndex, index)
+				}
+				if count == 0 {
+					log.Printf("Error: diff not found for index %x in ledger %d\n", index, ledgerIndex)
+				}
 			}
 		}
 	}
@@ -97,16 +104,6 @@ func checkDiff(session *gocql.Session, ledgerIndex uint64, tx []byte, metadata [
 	diffData := utils.GetDiffs(tx, uint32(len(tx)), metadata, uint32(len(metadata)), MAX_ITEM)
 	if len(diffData.CreatedIndexes) == MAX_ITEM || len(diffData.DeletedIndexes) == MAX_ITEM || len(diffData.UpdatedIndexes) == MAX_ITEM {
 		log.Printf("Error: too many diffs in tx from ledger %d", ledgerIndex)
-	}
-
-	for _, diff := range diffData.CreatedIndexes {
-		log.Printf("Diff: CreatedIndexes %x ledger %d\n", diff, ledgerIndex)
-	}
-	for _, diff := range diffData.DeletedIndexes {
-		log.Printf("Diff: DeletedIndexes %x ledger %d\n", diff, ledgerIndex)
-	}
-	for _, diff := range diffData.UpdatedIndexes {
-		log.Printf("Diff: UpdatedIndexes %x ledger %d\n", diff, ledgerIndex)
 	}
 	return diffData
 }
