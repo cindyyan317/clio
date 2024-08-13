@@ -47,7 +47,7 @@ namespace rpc::impl {
 
 class ProductionHandlerProvider final : public HandlerProvider {
     struct Handler {
-        AnyHandler handler;
+        std::shared_ptr<AnyHandler> handler;
         bool isClioOnly = false;
     };
 
@@ -67,7 +67,7 @@ public:
     bool
     contains(std::string const& command) const override;
 
-    std::optional<AnyHandler>
+    std::shared_ptr<AnyHandler>
     getHandler(std::string const& command) const override;
 
     bool

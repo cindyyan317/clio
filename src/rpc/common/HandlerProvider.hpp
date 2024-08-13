@@ -48,7 +48,7 @@ public:
      * @param command The method to get the handler for
      * @return The handler for the method, or std::nullopt if the method is not found
      */
-    virtual std::optional<AnyHandler>
+    virtual std::shared_ptr<AnyHandler>
     getHandler(std::string const& command) const = 0;
 
     /**
