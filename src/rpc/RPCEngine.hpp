@@ -150,7 +150,7 @@ public:
             LOG(perfLog_.debug()) << ctx.tag() << " start executing rpc `" << ctx.method << '`';
 
             auto const context = Context{ctx.yield, ctx.session, ctx.isAdmin, ctx.clientIp, ctx.apiVersion};
-            auto v = (*method).process(ctx.params, context);
+            auto v = (*method).get().process(ctx.params, context);
 
             LOG(perfLog_.debug()) << ctx.tag() << " finish executing rpc `" << ctx.method << '`';
 

@@ -27,6 +27,7 @@
 #include "rpc/common/Types.hpp"
 #include "util/config/Config.hpp"
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -64,7 +65,7 @@ public:
     bool
     contains(std::string const& command) const override;
 
-    std::optional<AnyHandler>
+    std::optional<std::reference_wrapper<AnyHandler const>>
     getHandler(std::string const& command) const override;
 
     bool

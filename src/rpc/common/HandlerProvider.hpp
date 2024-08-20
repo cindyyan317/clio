@@ -21,6 +21,7 @@
 
 #include "rpc/common/AnyHandler.hpp"
 
+#include <functional>
 #include <optional>
 #include <string>
 
@@ -48,7 +49,7 @@ public:
      * @param command The method to get the handler for
      * @return The handler for the method, or std::nullopt if the method is not found
      */
-    virtual std::optional<AnyHandler>
+    virtual std::optional<std::reference_wrapper<AnyHandler const>>
     getHandler(std::string const& command) const = 0;
 
     /**

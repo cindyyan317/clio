@@ -61,6 +61,7 @@
 #include "rpc/handlers/VersionHandler.hpp"
 #include "util/config/Config.hpp"
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -121,7 +122,7 @@ ProductionHandlerProvider::contains(std::string const& command) const
     return handlerMap_.contains(command);
 }
 
-std::optional<AnyHandler>
+std::optional<std::reference_wrapper<AnyHandler const>>
 ProductionHandlerProvider::getHandler(std::string const& command) const
 {
     if (!handlerMap_.contains(command))
