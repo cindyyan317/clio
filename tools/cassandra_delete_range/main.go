@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -340,7 +341,7 @@ func deleteLedgerData(cluster *gocql.ClusterConfig, fromLedgerIdx uint64, toLedg
 		log.Printf("Total traversed rows: %d\n\n", rowsCount)
 		totalErrors += errCount
 		totalRows += rowsCount
-		deleteCount, errCount = performDeleteQueries(cluster, &info, columnSettings{UseBlob: true, UseSeq: true})
+		deleteCount, errCount = 0, 0 //performDeleteQueries(cluster, &info, columnSettings{UseBlob: true, UseSeq: true})
 		totalErrors += errCount
 		totalDeletes += deleteCount
 	}
@@ -441,7 +442,7 @@ func prepareSimpleDeleteQueries(fromLedgerIdx uint64, toLedgerIdx uint64, delete
 	return info
 }
 
-func prepareDeleteQueries(cluster *gocql.ClusterConfig, fromLedgerIdx uint64, queryTemplate string, deleteQueryTemplate string) (deleteInfo, uint64, uint64) {
+func prepareDeleteQueries(cluster *gocql.ClusterConfig, toLedgerIdx uint64, queryTemplate string, deleteQueryTemplate string) (deleteInfo, uint64, uint64) {
 	rangesChannel := make(chan *tokenRange, len(ranges))
 	for i := range ranges {
 		rangesChannel <- ranges[i]
@@ -467,7 +468,7 @@ func prepareDeleteQueries(cluster *gocql.ClusterConfig, fromLedgerIdx uint64, qu
 	sessionCreationWaitGroup.Add(workerCount)
 
 	for i := 0; i < workerCount; i++ {
-		go func(q string) {
+		go func(q string, i int) {
 			defer wg.Done()
 
 			var session *gocql.Session
@@ -485,6 +486,9 @@ func prepareDeleteQueries(cluster *gocql.ClusterConfig, fromLedgerIdx uint64, qu
 					var pageState []byte
 					var rowsRetrieved uint64
 
+					var previousKey []byte
+					var hasFindLastValid bool
+
 					for {
 						iter := preparedQuery.PageSize(*clusterPageSize).PageState(pageState).Iter()
 						nextPageState := iter.PageState()
@@ -497,11 +501,31 @@ func prepareDeleteQueries(cluster *gocql.ClusterConfig, fromLedgerIdx uint64, qu
 							err = scanner.Scan(&key, &seq)
 							if err == nil {
 								rowsRetrieved++
-
-								// only grab the rows that are in the correct range of sequence numbers
-								if fromLedgerIdx <= seq {
-									outChannel <- deleteParams{Seq: seq, Blob: key}
+								// new object appear
+								if !slices.Equal(previousKey, key) {
+									previousKey = key
+									hasFindLastValid = false
 								}
+
+								//toLedgerIdx is from input + 1
+								if seq < toLedgerIdx {
+									if hasFindLastValid {
+										outChannel <- deleteParams{Seq: seq, Blob: key}
+										if r.StartRange == -6807360972756427120 {
+											log.Printf("INFO: find key: %x seq: %d deleted \n", key, seq)
+										}
+									} else {
+										hasFindLastValid = true
+										if r.StartRange == -6807360972756427120 {
+											log.Printf("INFO: find1 key: %x seq: %d keep \n", key, seq)
+										}
+									}
+								} else {
+									if r.StartRange == -6807360972756427120 {
+										log.Printf("INFO: find2 key: %x seq: %d keep \n", key, seq)
+									}
+								}
+
 							} else {
 								log.Printf("ERROR: page iteration failed: %s\n", err)
 								fmt.Fprintf(os.Stderr, "FAILED QUERY: %s\n", fmt.Sprintf("%s [from=%d][to=%d][pagestate=%x]", queryTemplate, r.StartRange, r.EndRange, pageState))
@@ -523,7 +547,7 @@ func prepareDeleteQueries(cluster *gocql.ClusterConfig, fromLedgerIdx uint64, qu
 				fmt.Fprintf(os.Stderr, "FAILED TO CREATE SESSION: %s\n", err)
 				atomic.AddUint64(&totalErrors, 1)
 			}
-		}(queryTemplate)
+		}(queryTemplate, i)
 	}
 
 	wg.Wait()
