@@ -511,18 +511,8 @@ func prepareDeleteQueries(cluster *gocql.ClusterConfig, toLedgerIdx uint64, quer
 								if seq < toLedgerIdx {
 									if hasFindLastValid {
 										outChannel <- deleteParams{Seq: seq, Blob: key}
-										if r.StartRange == -6807360972756427120 {
-											log.Printf("INFO: find key: %x seq: %d deleted \n", key, seq)
-										}
 									} else {
 										hasFindLastValid = true
-										if r.StartRange == -6807360972756427120 {
-											log.Printf("INFO: find1 key: %x seq: %d keep \n", key, seq)
-										}
-									}
-								} else {
-									if r.StartRange == -6807360972756427120 {
-										log.Printf("INFO: find2 key: %x seq: %d keep \n", key, seq)
 									}
 								}
 
