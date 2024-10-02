@@ -21,6 +21,7 @@
 #include "data/BackendInterface.hpp"
 #include "data/migration/BaseMigrator.hpp"
 #include "data/migration/TempMigrator.hpp"
+#include "util/log/Logger.hpp"
 
 #include <boost/asio/spawn.hpp>
 
@@ -30,10 +31,10 @@
 #include <unordered_map>
 #include <vector>
 
-template <typename... Ts>
 class MigrationManager {
     std::unordered_map<std::string, std::shared_ptr<BaseMigrator>> registeredMigrators_;
     std::shared_ptr<data::BackendInterface> backend_;
+    util::Logger log_{"Migration"};
 
 public:
     MigrationManager(std::shared_ptr<data::BackendInterface>& backend) : backend_(backend)
@@ -65,7 +66,7 @@ private:
     void
     registerMigrator()
     {
-        auto migrator = std::make_shared<T>(backend_);
+        auto migrator = std::make_shared<T>();
         registeredMigrators_.emplace(migrator->name(), migrator);
     }
 };

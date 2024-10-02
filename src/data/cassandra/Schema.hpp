@@ -261,7 +261,7 @@ public:
             R"(
            CREATE TABLE IF NOT EXISTS {}
                   ( 
-                    id INT,
+                    id TEXT,
                     migrated TEXT,
                     PRIMARY KEY (id, migrated)
                   ) 
@@ -458,9 +458,8 @@ public:
             return handle_.get().prepare(fmt::format(
                 R"(
                 INSERT INTO {} 
-                    (id, migrated)
-                VALUES ("Migrated", ?)
-                   
+                       (id, migrated)
+                VALUES (?, ?)
                 )",
                 qualifiedTableName(settingsProvider_.get(), "migrated_features")
             ));
@@ -760,7 +759,7 @@ public:
                 R"(
                 SELECT migrated
                   FROM {}
-                WHERE id = "Migrated"
+                WHERE id = 'Migrated'
                 )",
                 qualifiedTableName(settingsProvider_.get(), "migrated_features")
             ));

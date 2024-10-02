@@ -38,13 +38,15 @@ CliArgs::Action
 CliArgs::parse(int argc, char const* argv[])
 {
     namespace po = boost::program_options;
+    std::string yes_no_option;
+
     // clang-format off
     po::options_description description("Options");
     description.add_options()
         ("help,h", "print help message and exit")
         ("version,v", "print version and exit")
         ("conf,c", po::value<std::string>()->default_value(defaultConfigPath), "configuration file")
-        ("migrate", "start database migration helper")
+        ("migrate", po::value<std::string>()->default_value("status"),"start migration helper")
     ;
     // clang-format on
     po::positional_options_description positional;
@@ -67,7 +69,7 @@ CliArgs::parse(int argc, char const* argv[])
     auto configPath = parsed["conf"].as<std::string>();
 
     if (parsed.count("migrate") != 0u) {
-        return Action{Action::Migrate{std::move(configPath)}};
+        return Action{Action::Migrate{std::move(configPath), parsed["migrate"].as<std::string>()}};
     }
 
     return Action{Action::Run{std::move(configPath)}};

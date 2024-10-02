@@ -55,6 +55,7 @@ public:
 
         struct Migrate {
             std::string configPath;
+            std::string subCmd;
         };
 
         /**
