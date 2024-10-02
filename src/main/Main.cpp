@@ -45,6 +45,10 @@ try {
             util::LogService::init(config);
             app::ClioApplication clio{config};
             return clio.run();
+        },
+        [](app::CliArgs::Action::Migrate const& migrate) {
+            std::cout << "Run migration" << migrate.configPath << std::endl;
+            return EXIT_FAILURE;
         }
     );
 } catch (std::exception const& e) {

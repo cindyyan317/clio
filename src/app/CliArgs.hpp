@@ -53,13 +53,18 @@ public:
             int exitCode;
         };
 
+        struct Migrate {
+            std::string configPath;
+        };
+
         /**
          * @brief Construct an action from a Run.
          *
          * @param action Run action.
          */
         template <typename ActionType>
-            requires std::is_same_v<ActionType, Run> or std::is_same_v<ActionType, Exit>
+            requires std::is_same_v<ActionType, Run> or std::is_same_v<ActionType, Exit> or
+            std::is_same_v<ActionType, Migrate>
         explicit Action(ActionType&& action) : action_(std::forward<ActionType>(action))
         {
         }
@@ -79,7 +84,7 @@ public:
         }
 
     private:
-        std::variant<Run, Exit> action_;
+        std::variant<Run, Exit, Migrate> action_;
     };
 
     /**

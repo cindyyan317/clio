@@ -53,6 +53,7 @@
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -796,6 +797,28 @@ public:
         return results;
     }
 
+    std::optional<std::unordered_set<std::string>>
+    fetchMigratedFeatures(boost::asio::yield_context yield) const override
+    {
+        auto const res = executor_.read(yield, schema_->selectMigratedFeatures);
+        if (not res) {
+            LOG(log_.error()) << "Could not fetch migrated features: " << res.error();
+            return {};
+        }
+
+        auto const& results = res.value();
+        if (not results) {
+            LOG(log_.warn()) << "No migrated features in database";
+            return std::unordered_set<std::string>{};
+        }
+
+        std::unordered_set<std::string> features;
+        for (auto [feature] : extract<std::string>(results))
+            features.insert(feature);
+
+        return features;
+    }
+
     void
     doWriteLedgerObject(std::string&& key, std::uint32_t const seq, std::string&& blob) override
     {
@@ -903,6 +926,12 @@ public:
         }
 
         executor_.write(std::move(statements));
+    }
+
+    void
+    writeMigratedFeature(std::string&& feature) override
+    {
+        executor_.write(schema_->insertMigratedFeatures, std::move(feature));
     }
 
     void

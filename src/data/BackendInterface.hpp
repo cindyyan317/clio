@@ -45,6 +45,7 @@
 #include <string>
 #include <thread>
 #include <type_traits>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -512,6 +513,8 @@ public:
     virtual std::optional<ripple::uint256>
     doFetchSuccessorKey(ripple::uint256 key, std::uint32_t ledgerSequence, boost::asio::yield_context yield) const = 0;
 
+    virtual std::optional<std::unordered_set<std::string>>
+    fetchMigratedFeatures(boost::asio::yield_context yield) const = 0;
     /**
      * @brief Fetches book offers.
      *
@@ -626,6 +629,9 @@ public:
      */
     virtual void
     writeSuccessor(std::string&& key, std::uint32_t seq, std::string&& successor) = 0;
+
+    virtual void
+    writeMigratedFeature(std::string&& feature) = 0;
 
     /**
      * @brief Starts a write transaction with the DB. No-op for cassandra.

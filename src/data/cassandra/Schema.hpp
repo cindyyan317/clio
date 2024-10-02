@@ -257,6 +257,18 @@ public:
             qualifiedTableName(settingsProvider_.get(), "nf_token_transactions")
         ));
 
+        statements.emplace_back(fmt::format(
+            R"(
+           CREATE TABLE IF NOT EXISTS {}
+                  ( 
+                    id INT,
+                    migrated TEXT,
+                    PRIMARY KEY (id, migrated)
+                  ) 
+            )",
+            qualifiedTableName(settingsProvider_.get(), "migrated_features")
+        ));
+
         return statements;
     }();
 
@@ -439,6 +451,18 @@ public:
                  WHERE is_latest = false
                 )",
                 qualifiedTableName(settingsProvider_.get(), "ledger_range")
+            ));
+        }();
+
+        PreparedStatement insertMigratedFeatures = [this]() {
+            return handle_.get().prepare(fmt::format(
+                R"(
+                INSERT INTO {} 
+                    (id, migrated)
+                VALUES ("Migrated", ?)
+                   
+                )",
+                qualifiedTableName(settingsProvider_.get(), "migrated_features")
             ));
         }();
 
@@ -728,6 +752,17 @@ public:
                   FROM {}
                 )",
                 qualifiedTableName(settingsProvider_.get(), "ledger_range")
+            ));
+        }();
+
+        PreparedStatement selectMigratedFeatures = [this]() {
+            return handle_.get().prepare(fmt::format(
+                R"(
+                SELECT migrated
+                  FROM {}
+                WHERE id = "Migrated"
+                )",
+                qualifiedTableName(settingsProvider_.get(), "migrated_features")
             ));
         }();
     };

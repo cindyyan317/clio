@@ -34,6 +34,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 using namespace data;
@@ -175,6 +176,13 @@ struct MockBackend : public BackendInterface {
         (const, override)
     );
 
+    MOCK_METHOD(
+        std::optional<std::unordered_set<std::string>>,
+        fetchMigratedFeatures,
+        (boost::asio::yield_context),
+        (const, override)
+    );
+
     MOCK_METHOD(std::optional<LedgerRange>, hardFetchLedgerRange, (boost::asio::yield_context), (const, override));
 
     MOCK_METHOD(void, writeLedger, (ripple::LedgerHeader const&, std::string&&), (override));
@@ -195,6 +203,8 @@ struct MockBackend : public BackendInterface {
     MOCK_METHOD(void, writeNFTTransactions, (std::vector<NFTTransactionsData> const&), (override));
 
     MOCK_METHOD(void, writeSuccessor, (std::string && key, std::uint32_t const, std::string&&), (override));
+
+    MOCK_METHOD(void, writeMigratedFeature, (std::string&&), (override));
 
     MOCK_METHOD(void, startWrites, (), (const, override));
 
