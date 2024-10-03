@@ -62,67 +62,44 @@ namespace {
 
 }  // namespace
 
-MigratorApplication::MigratorApplication(util::Config const& config, std::string subCmd)
-    : config_(config), subCmd_(std::move(subCmd))
+MigratorApplication::MigratorApplication(util::Config const& config, std::string option)
+    : config_(config), option_(std::move(option))
 {
-    LOG(util::LogService::info()) << "Clio version: " << util::build::getClioFullVersionString();
     PrometheusService::init(config);
+    backend_ = data::make_Backend(config_);
+    migrationManager_ = std::make_shared<MigrationManager>(backend_);
 }
 
 int
 MigratorApplication::run()
 {
-    // auto const threads = config_.valueOr("io_threads", 2);
-    // if (threads <= 0) {
-    //     LOG(util::LogService::fatal()) << "io_threads is less than 1";
-    //     return EXIT_FAILURE;
-    // }
-    // LOG(util::LogService::info()) << "Number of io threads = " << threads;
+    if (option_ == "status") {
+        return printStatus();
+    }
+    LOG(util::LogService::fatal()) << "Unknown option for migrator helper: " << option_;
+    return EXIT_FAILURE;
+}
 
-    // // IO context to handle all incoming requests, as well as other things.
-    // // This is not the only io context in the application.
-    // boost::asio::io_context ioc{threads};
-
-    // // Interface to the database
-
-    auto backend = data::make_Backend(config_);
-    std::shared_ptr<MigrationManager> migrationManager = std::make_shared<MigrationManager>(backend);
-
-    if (subCmd_ == "status") {
-        auto const migratedFeatures =
-            data::synchronous([&](auto yield) { return backend->fetchMigratedFeatures(yield); });
-        if (not migratedFeatures) {
-            LOG(util::LogService::fatal()) << "Could not fetch migrated features";
-            return EXIT_FAILURE;
-        }
-
-        auto const allMigratorsStatus =
-            data::synchronous([&](auto yield) { return migrationManager->allMigratorsStatus(yield); });
-
-        for (auto const& [migrator, status] : allMigratorsStatus) {
-            std::cout << "Migrator: " << migrator << " - " << (status ? "migrated" : "not migrated") << std::endl;
-        }
-
-    } else {
-        LOG(util::LogService::fatal()) << "Unknown subcommand for migrator helper: " << subCmd_;
+int
+MigratorApplication::printStatus()
+{
+    std::cout << "Current Migration Status:" << std::endl;
+    auto const migratedFeatures = data::synchronous([&](auto yield) { return backend_->fetchMigratedFeatures(yield); });
+    if (not migratedFeatures) {
+        LOG(util::LogService::fatal()) << "Could not fetch migrated features";
         return EXIT_FAILURE;
     }
 
-    // std::this_thread::sleep_for(std::chrono::seconds(5));
-    //  boost::asio::spawn(ioc, [&backend](boost::asio::yield_context yield) {
-    //      auto range = backend->hardFetchLedgerRange(yield);
-    //      if (not range) {
-    //          LOG(util::LogService::fatal()) << "Could not fetch ledger range";
-    //          return;
-    //      }
-    //      LOG(util::LogService::info()) << "Ledger range: " << range->minSequence << " - " << range->maxSequence;
-    //  });
+    auto const allMigratorsStatus =
+        data::synchronous([&](auto yield) { return migrationManager_->allMigratorsStatus(yield); });
 
-    // Blocks until stopped.
-    // When stopped, shared_ptrs fall out of scope
-    // Calls destructors on all resources, and destructs in order
-    // start(ioc, threads);
-
+    for (auto const& [migrator, status] : allMigratorsStatus) {
+        std::cout << "Migrator: " << migrator << " - "
+                  << (status == MigrationStatus::Migrated              ? "migrated"
+                          : status == MigrationStatus::UnknownMigrator ? "Unknown Migration"
+                                                                       : "not migrated")
+                  << std::endl;
+    }
     return EXIT_SUCCESS;
 }
 

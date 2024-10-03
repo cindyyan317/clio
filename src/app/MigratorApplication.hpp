@@ -19,8 +19,11 @@
 
 #pragma once
 
+#include "data/BackendInterface.hpp"
+#include "data/migration/MigrationManager.hpp"
 #include "util/config//Config.hpp"
 
+#include <memory>
 #include <string>
 
 namespace app {
@@ -30,7 +33,7 @@ namespace app {
  */
 class MigratorApplication {
     util::Config const& config_;
-    std::string subCmd_;
+    std::string option_;
 
 public:
     /**
@@ -38,7 +41,7 @@ public:
      *
      * @param config The configuration of the application
      */
-    MigratorApplication(util::Config const& config, std::string subCmd);
+    MigratorApplication(util::Config const& config, std::string option);
 
     /**
      * @brief Run the application
@@ -47,6 +50,12 @@ public:
      */
     int
     run();
+
+private:
+    std::shared_ptr<MigrationManager> migrationManager_;
+    std::shared_ptr<data::BackendInterface> backend_;
+    int
+    printStatus();
 };
 
 }  // namespace app

@@ -27,4 +27,6 @@ public:
     toString() const = 0;
     virtual std::string
     name() const = 0;
+    virtual bool
+    blockIfNotMigrated() const = 0;
 };

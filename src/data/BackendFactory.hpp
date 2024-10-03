@@ -22,15 +22,19 @@
 #include "data/BackendInterface.hpp"
 #include "data/CassandraBackend.hpp"
 #include "data/cassandra/SettingsProvider.hpp"
+#include "data/migration/MigrationManager.hpp"
 #include "util/config/Config.hpp"
 #include "util/log/Logger.hpp"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace data {
 
@@ -58,6 +62,15 @@ make_Backend(util::Config const& config)
 
     if (!backend)
         throw std::runtime_error("Invalid database type");
+
+    MigrationManager migrationManager(backend);
+    std::vector<std::string> const blockedMigrations =
+        synchronous([&](auto ctx) { return migrationManager.getBlockedMigrations(ctx); });
+    if (!blockedMigrations.empty()) {
+        auto const blockedMigrationsStr = fmt::format("Blocked migrations: {}", fmt::join(blockedMigrations, ", "));
+        LOG(log.error()) << blockedMigrationsStr;
+        throw std::runtime_error(blockedMigrationsStr);
+    }
 
     auto const rng = backend->hardFetchLedgerRangeNoThrow();
     if (rng)

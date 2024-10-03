@@ -31,6 +31,8 @@
 #include <unordered_map>
 #include <vector>
 
+enum class MigrationStatus { Migrated, NotMigrated, UnknownMigrator };
+
 class MigrationManager {
     std::unordered_map<std::string, std::shared_ptr<BaseMigrator>> registeredMigrators_;
     std::shared_ptr<data::BackendInterface> backend_;
@@ -42,20 +44,44 @@ public:
         registerMigrator<TempMigrator>();
     }
 
-    std::vector<std::tuple<std::string, bool>>
-    allMigratorsStatus(boost::asio::yield_context ctx)
+    std::vector<std::string>
+    getBlockedMigrations(boost::asio::yield_context ctx)
     {
-        auto const migratedFromDB = backend_->fetchMigratedFeatures(ctx);
+        auto migratedFromDB = backend_->fetchMigratedFeatures(ctx);
         if (not migratedFromDB.has_value())
             return {};
 
-        std::vector<std::tuple<std::string, bool>> result;
+        std::vector<std::string> blockedMigrations;
+        for (auto const& migrator : registeredMigrators_) {
+            if (!migratedFromDB->contains(migrator.first)) {
+                LOG(log_.warn()) << "Migrator " << migrator.first << " has not been run";
+                if (migrator.second->blockIfNotMigrated()) {
+                    blockedMigrations.push_back(migrator.first);
+                }
+            }
+        }
+        return blockedMigrations;
+    }
+
+    std::vector<std::tuple<std::string, MigrationStatus>>
+    allMigratorsStatus(boost::asio::yield_context ctx)
+    {
+        auto migratedFromDB = backend_->fetchMigratedFeatures(ctx);
+        if (not migratedFromDB.has_value())
+            return {};
+
+        std::vector<std::tuple<std::string, MigrationStatus>> result;
         for (auto const& migrator : registeredMigrators_) {
             if (migratedFromDB->contains(migrator.first)) {
-                result.emplace_back(migrator.first, true);
+                result.emplace_back(migrator.first, MigrationStatus::Migrated);
             } else {
-                result.emplace_back(migrator.first, false);
+                result.emplace_back(migrator.first, MigrationStatus::NotMigrated);
             }
+            migratedFromDB->erase(migrator.first);
+        }
+
+        for (auto const& migrated : migratedFromDB.value()) {
+            result.emplace_back(migrated, MigrationStatus::UnknownMigrator);
         }
 
         return result;

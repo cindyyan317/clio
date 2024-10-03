@@ -33,4 +33,10 @@ public:
     {
         return "TempMigrator";
     }
+
+    bool
+    blockIfNotMigrated() const override
+    {
+        return true;
+    }
 };

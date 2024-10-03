@@ -459,7 +459,7 @@ public:
                 R"(
                 INSERT INTO {} 
                        (id, migrated)
-                VALUES (?, ?)
+                VALUES ('migrated', ?)
                 )",
                 qualifiedTableName(settingsProvider_.get(), "migrated_features")
             ));
@@ -759,7 +759,7 @@ public:
                 R"(
                 SELECT migrated
                   FROM {}
-                WHERE id = 'Migrated'
+                WHERE id = 'migrated'
                 )",
                 qualifiedTableName(settingsProvider_.get(), "migrated_features")
             ));

@@ -46,7 +46,7 @@ CliArgs::parse(int argc, char const* argv[])
         ("help,h", "print help message and exit")
         ("version,v", "print version and exit")
         ("conf,c", po::value<std::string>()->default_value(defaultConfigPath), "configuration file")
-        ("migrate", po::value<std::string>()->default_value("status"),"start migration helper")
+        ("migrate", po::value<std::string>(),"start migration helper")
     ;
     // clang-format on
     po::positional_options_description positional;
