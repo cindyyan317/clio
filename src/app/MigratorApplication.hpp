@@ -21,6 +21,7 @@
 
 #include "data/BackendInterface.hpp"
 #include "data/migration/MigrationManager.hpp"
+#include "data/migration/TempMigrator.hpp"
 #include "util/config//Config.hpp"
 
 #include <memory>
@@ -52,6 +53,7 @@ public:
     run();
 
 private:
+    using MigrationManager = MigrationManager<TempMigrator>;
     std::shared_ptr<MigrationManager> migrationManager_;
     std::shared_ptr<data::BackendInterface> backend_;
     int

@@ -20,7 +20,6 @@
 #pragma once
 #include "data/BackendInterface.hpp"
 #include "data/migration/BaseMigrator.hpp"
-#include "data/migration/TempMigrator.hpp"
 #include "util/log/Logger.hpp"
 
 #include <boost/asio/spawn.hpp>
@@ -33,6 +32,7 @@
 
 enum class MigrationStatus { Migrated, NotMigrated, UnknownMigrator };
 
+template <typename... MigratorType>
 class MigrationManager {
     std::unordered_map<std::string, std::shared_ptr<BaseMigrator>> registeredMigrators_;
     std::shared_ptr<data::BackendInterface> backend_;
@@ -41,7 +41,7 @@ class MigrationManager {
 public:
     MigrationManager(std::shared_ptr<data::BackendInterface>& backend) : backend_(backend)
     {
-        registerMigrator<TempMigrator>();
+        (registerMigrator<MigratorType>(), ...);
     }
 
     std::vector<std::string>
