@@ -93,6 +93,9 @@ MigratorApplication::printStatus()
     auto const allMigratorsStatus =
         data::synchronous([&](auto yield) { return migrationManager_->allMigratorsStatus(yield); });
 
+    if (allMigratorsStatus.empty())
+        std::cout << "No migrator found" << std::endl;
+
     for (auto const& [migrator, status] : allMigratorsStatus) {
         std::cout << "Migrator: " << migrator << " - "
                   << (status == MigrationStatus::Migrated              ? "migrated"
