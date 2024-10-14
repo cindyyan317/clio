@@ -764,6 +764,17 @@ public:
                 qualifiedTableName(settingsProvider_.get(), "migrated_features")
             ));
         }();
+
+        PreparedStatement fullScanNFTTxHash = [this]() {
+            return handle_.get().prepare(fmt::format(
+                R"(
+                SELECT hash
+                  FROM {}
+                WHERE token(token_id) >= ? AND token(token_id) <= ?
+                )",
+                qualifiedTableName(settingsProvider_.get(), "nf_token_transactions")
+            ));
+        }();
     };
 
     /**

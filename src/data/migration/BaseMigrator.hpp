@@ -18,6 +18,9 @@
 
 #pragma once
 
+#include "data/BackendInterface.hpp"
+
+#include <memory>
 #include <string>
 
 class BaseMigrator {
@@ -29,4 +32,6 @@ public:
     name() const = 0;
     virtual bool
     blockIfNotMigrated() const = 0;
+    virtual void
+    runMigration(std::shared_ptr<data::BackendInterface> backend) = 0;
 };

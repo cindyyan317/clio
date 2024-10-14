@@ -87,6 +87,16 @@ public:
         return result;
     }
 
+    void
+    runMigration(std::string name)
+    {
+        if (registeredMigrators_.find(name) == registeredMigrators_.end()) {
+            LOG(log_.error()) << "Migrator " << name << " not found";
+            return;
+        }
+        registeredMigrators_[name]->runMigration(backend_);
+    }
+
 private:
     template <typename T>
     void

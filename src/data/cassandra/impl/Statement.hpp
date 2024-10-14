@@ -22,6 +22,7 @@
 #include "data/cassandra/Types.hpp"
 #include "data/cassandra/impl/Collection.hpp"
 #include "data/cassandra/impl/ManagedObject.hpp"
+#include "data/cassandra/impl/Result.hpp"
 #include "data/cassandra/impl/Tuple.hpp"
 #include "util/UnsupportedType.hpp"
 
@@ -141,6 +142,28 @@ public:
             // type not supported for binding
             static_assert(util::Unsupported<DecayedType>);
         }
+    }
+
+    /**
+     * @brief Return the size rows every time this statement is executed
+     *
+     * @param size page size
+     */
+    void
+    setPageSize(std::uint32_t size) const
+    {
+        cass_statement_set_paging_size(*this, size);
+    }
+
+    /**
+     * @brief Set the paging state for this statement
+     *
+     * @param result the current result
+     */
+    void
+    setPagingState(Result const& result) const
+    {
+        cass_statement_set_paging_state(*this, &(*result));
     }
 };
 

@@ -977,6 +977,43 @@ private:
 
         return true;
     }
+
+    template <typename... Args>
+    auto
+    pagingQuery(
+        PreparedStatement preparedStatement,
+        std::uint32_t pageSize,
+        boost::asio::yield_context yield,
+        Args&&... args
+    )
+    {
+        auto statement = preparedStatement.bind(std::forward<Args>(args)...);
+        statement.setPageSize(pageSize);
+
+        while (true) {
+            auto const res = executor_.read(yield, statement);
+            if (not res) {
+                LOG(log_.error()) << "Could not fetch page: " << res.error();
+                return {};
+            }
+
+            auto const& results = res.value();
+            if (not results) {
+                LOG(log_.error()) << "Could not fetch page";
+                return {};
+            }
+
+            std::vector<ripple::uint256> resultKeys;
+            for (auto [key] : extract<ripple::uint256>(results))
+                resultKeys.push_back(key);
+
+            if (!results.hasMorePages())
+                break;
+
+            statement
+        }
+        return resultKeys;
+    }
 };
 
 using CassandraBackend = BasicCassandraBackend<SettingsProvider, impl::DefaultExecutionStrategy<>>;

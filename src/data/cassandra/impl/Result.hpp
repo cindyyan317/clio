@@ -142,6 +142,12 @@ struct Result : public ManagedObject<CassResult const> {
             return std::nullopt;
         return std::make_optional<RowType>(extractColumn<RowType>(row, 0));
     }
+
+    bool
+    hasMore() const
+    {
+        return cass_result_has_more_pages(*this) != 0u;
+    }
 };
 
 class ResultIterator : public ManagedObject<CassIterator> {
