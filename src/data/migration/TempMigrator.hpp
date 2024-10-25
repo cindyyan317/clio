@@ -19,7 +19,7 @@
 #pragma once
 
 #include "data/migration/BaseMigrator.hpp"
-#include "data/migration/FullTableScaner.hpp"
+// #include "data/migration/FullTableScaner.hpp"
 
 class TempMigrator : public BaseMigrator {
 public:
@@ -42,13 +42,13 @@ public:
     }
 
     void
-    runMigration(std::shared_ptr<data::BackendInterface> backend) override
+    runMigration(std::shared_ptr<data::BackendInterface>) override
     {
-        using ReturnType = std::tuple<std::string, std::string>;
-        FullTableScaner tableFullScaner("table_name", backend, [](std::int64_t upper, std::int64_t lower) {
-            // using upper and lower to fetch data from prepared statement
-            // page itetrate the data
-        });
+        // using ReturnType = std::tuple<std::string, std::string>;
+        // FullTableScaner tableFullScaner("table_name", backend, [](std::int64_t upper, std::int64_t lower) {
+        //     // using upper and lower to fetch data from prepared statement
+        //     // page itetrate the data
+        // });
         // Run the migration
     }
 };
