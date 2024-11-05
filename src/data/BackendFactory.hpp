@@ -63,14 +63,14 @@ make_Backend(util::Config const& config)
     if (!backend)
         throw std::runtime_error("Invalid database type");
 
-    MigrationManager migrationManager(backend);
-    std::vector<std::string> const blockedMigrations =
-        synchronous([&](auto ctx) { return migrationManager.getBlockedMigrations(ctx); });
-    if (!blockedMigrations.empty()) {
-        auto const blockedMigrationsStr = fmt::format("Blocked migrations: {}", fmt::join(blockedMigrations, ", "));
-        LOG(log.error()) << blockedMigrationsStr;
-        throw std::runtime_error(blockedMigrationsStr);
-    }
+    // MigrationManager migrationManager(backend);
+    // std::vector<std::string> const blockedMigrations =
+    //     synchronous([&](auto ctx) { return migrationManager.getBlockedMigrations(ctx); });
+    // if (!blockedMigrations.empty()) {
+    //     auto const blockedMigrationsStr = fmt::format("Blocked migrations: {}", fmt::join(blockedMigrations, ", "));
+    //     LOG(log.error()) << blockedMigrationsStr;
+    //     throw std::runtime_error(blockedMigrationsStr);
+    // }
 
     auto const rng = backend->hardFetchLedgerRangeNoThrow();
     if (rng)

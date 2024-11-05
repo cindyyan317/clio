@@ -21,6 +21,7 @@
 #include "data/migration/BaseMigrator.hpp"
 #include "data/migration/FullTableScaner.hpp"
 #include "data/migration/MigrationCassandraBackend.hpp"
+#include "data/migration/ObjectsReader.hpp"
 // #include "data/migration/FullTableScaner.hpp"
 
 class TempMigrator : public BaseMigrator {
@@ -44,10 +45,23 @@ public:
     }
 
     void
-    runMigration(std::shared_ptr<MigrationCassandraBackend>) override
+    runMigration(std::shared_ptr<MigrationCassandraBackend> backend) override
     {
-        FullTableScaner scanner(2, 4, TokenRangesProvider(1000).getRanges(), [](TokenRange const& token) {
-            std::cout << "start: " << token.start << " end: " << token.end << std::endl;
+        ObjectsReader reader(backend, [](data::Blob const& object, std::uint32_t sequence) {
+            std::cout << "sequence: " << sequence << " object: " << object.size() << std::endl;
         });
+        ObjectsScaner scanner(
+            2,
+            4,
+            TokenRangesProvider(1000).getRanges(),
+            ObjectsReader(
+                backend,
+                [](data::Blob const& object, std::uint32_t sequence) {
+                    std::cout << "sequence: " << sequence << " object: " << object.size() << std::endl;
+                }
+            )
+        );
+
+        scanner.wait();
     }
 };

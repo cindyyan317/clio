@@ -55,9 +55,12 @@ public:
 private:
     using MigrationManager = MigrationManager<TempMigrator>;
     std::shared_ptr<MigrationManager> migrationManager_;
-    std::shared_ptr<data::BackendInterface> backend_;
+    std::shared_ptr<MigrationCassandraBackend> backend_;
     int
     printStatus();
+
+    int
+    migrate();
 };
 
 }  // namespace app

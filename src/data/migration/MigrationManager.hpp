@@ -35,11 +35,11 @@ enum class MigrationStatus { Migrated, NotMigrated, UnknownMigrator };
 template <typename... MigratorType>
 class MigrationManager {
     std::unordered_map<std::string, std::shared_ptr<BaseMigrator>> registeredMigrators_;
-    std::shared_ptr<data::BackendInterface> backend_;
+    std::shared_ptr<MigrationCassandraBackend> backend_;
     util::Logger log_{"Migration"};
 
 public:
-    MigrationManager(std::shared_ptr<data::BackendInterface>& backend) : backend_(backend)
+    MigrationManager(std::shared_ptr<MigrationCassandraBackend>& backend) : backend_(backend)
     {
         (registerMigrator<MigratorType>(), ...);
     }

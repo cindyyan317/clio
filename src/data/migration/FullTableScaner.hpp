@@ -72,14 +72,13 @@ struct TokenRangesProvider {
     }
 };
 
+template <typename TableReader>
 class FullTableScaner {
 private:
     util::async::AnyExecutionContext ctx_;
-    std::string table_;
-    std::shared_ptr<data::BackendInterface> backend_;
-    std::function<void(TokenRange)> callback_;
     etl::ThreadSafeQueue<TokenRange> queue_;
     std::vector<util::async::AnyOperation<void>> tasks_;
+    TableReader reader_;
 
 public:
     template <typename ExecutionContextType = util::async::CoroExecutionContext>
@@ -87,12 +86,20 @@ public:
         std::uint32_t ctxThreadsNum,
         std::uint32_t workersNum,
         std::vector<TokenRange> const& cursors,
-        std::function<void(TokenRange)> callback
+        TableReader&& reader
     )
-        : ctx_(ExecutionContextType(ctxThreadsNum)), callback_(std::move(callback)), queue_{cursors.size()}
+        : ctx_(ExecutionContextType(ctxThreadsNum)), queue_{cursors.size()}, reader_{std::move(reader)}
     {
         std::ranges::for_each(cursors, [this](auto const& cursor) { queue_.push(cursor); });
         load(workersNum);
+    }
+
+    void
+    wait()
+    {
+        for (auto& task : tasks_) {
+            task.wait();
+        }
     }
 
 private:
@@ -106,7 +113,7 @@ private:
                     return;  // queue is empty
                 }
 
-                callback_(cursor.value());
+                reader_.fromTokenRange(cursor.value(), token);
             }
         });
     }

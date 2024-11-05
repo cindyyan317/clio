@@ -77,6 +77,9 @@ MigratorApplication::run()
     if (option_ == "status") {
         return printStatus();
     }
+    if (option_ == "start") {
+        return migrate();
+    }
     LOG(util::LogService::fatal()) << "Unknown option for migrator helper: " << option_;
     return EXIT_FAILURE;
 }
@@ -85,12 +88,6 @@ int
 MigratorApplication::printStatus()
 {
     std::cout << "Current Migration Status:" << std::endl;
-    auto const migratedFeatures = data::synchronous([&](auto yield) { return backend_->fetchMigratedFeatures(yield); });
-    if (not migratedFeatures) {
-        LOG(util::LogService::fatal()) << "Could not fetch migrated features";
-        return EXIT_FAILURE;
-    }
-
     auto const allMigratorsStatus =
         data::synchronous([&](auto yield) { return migrationManager_->allMigratorsStatus(yield); });
 
@@ -103,6 +100,24 @@ MigratorApplication::printStatus()
                           : status == MigrationStatus::UnknownMigrator ? "Unknown Migration"
                                                                        : "not migrated")
                   << std::endl;
+    }
+    return EXIT_SUCCESS;
+}
+
+int
+MigratorApplication::migrate()
+{
+    auto const allMigratorsStatus =
+        data::synchronous([&](auto yield) { return migrationManager_->allMigratorsStatus(yield); });
+
+    if (allMigratorsStatus.empty())
+        std::cout << "No migrator found" << std::endl;
+
+    for (auto const& [migrator, status] : allMigratorsStatus) {
+        if (status == MigrationStatus::NotMigrated) {
+            std::cout << "Start migrate " << migrator << std::endl;
+            migrationManager_->runMigration(migrator);
+        }
     }
     return EXIT_SUCCESS;
 }

@@ -19,8 +19,8 @@
 #pragma once
 
 #include "data/CassandraBackend.hpp"
+#include "data/cassandra/Handle.hpp"
 #include "data/cassandra/Schema.hpp"
-#include "data/cassandra/Types.hpp"
 #include "data/migration/MigrationSchema.hpp"
 
 template <
@@ -51,7 +51,7 @@ public:
     migrateObjectsInTokenRange(
         std::int64_t const& start,
         std::int64_t const& end,
-        auto const& transform,
+        std::function<void(std::uint32_t, data::Blob const&)> const& onRead,
         boost::asio::yield_context yield
     )
     {
@@ -66,8 +66,8 @@ public:
         auto numRows = results.numRows();
         LOG(log_.info()) << "num_rows = " << numRows;
 
-        for (auto [key, seq, object] : extract<ripple::uint256, uint32_t, data::Blob>(results)) {
-            transform(key, seq, object);
+        for (auto [key, seq, object] : data::cassandra::extract<ripple::uint256, uint32_t, data::Blob>(results)) {
+            onRead(seq, object);
         }
     }
 };
