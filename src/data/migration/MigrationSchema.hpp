@@ -76,12 +76,12 @@ public:
     }
 
     // the statements only work in migration process
-    data::cassandra::PreparedStatement insertObject = [this]() {
+    data::cassandra::PreparedStatement objectsTraverse = [this]() {
         return handle_.get().prepare(fmt::format(
             R"(
-                INSERT INTO {} 
-                       (key, sequence, object)
-                VALUES (?, ?, ?)
+                SELECT * FROM {} 
+                         WHERE TOKEN(key) >= ? 
+                           AND TOKEN(key) <= ?
                 )",
             qualifiedTableName(settingsProvider_.get(), "objects")
         ));

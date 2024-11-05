@@ -21,6 +21,7 @@
 
 #include "data/BackendFactory.hpp"
 #include "data/BackendInterface.hpp"
+#include "data/migration/MigrationCassandraBackend.hpp"
 #include "data/migration/MigrationManager.hpp"
 #include "rpc/common/impl/HandlerProvider.hpp"
 #include "util/build/Build.hpp"
@@ -66,7 +67,7 @@ MigratorApplication::MigratorApplication(util::Config const& config, std::string
     : config_(config), option_(std::move(option))
 {
     PrometheusService::init(config);
-    backend_ = data::make_Backend(config_);
+    backend_ = make_MigrationBackend(config_);
     migrationManager_ = std::make_shared<MigrationManager>(backend_);
 }
 

@@ -28,7 +28,9 @@ template <
     data::cassandra::SomeExecutionStrategy ExecutionStrategyType>
 class BasicMigrationCassandraBackend
     : public data::cassandra::BasicCassandraBackend<SettingsProviderType, ExecutionStrategyType> {
-    MigrationSchema<SettingsProviderType> migrationSchema_;
+    MigrationSchema<SettingsProviderType, MigationStatements<SettingsProviderType>> migrationSchema_;
+
+    util::Logger log_{"MigrationBackend"};
 
 public:
     BasicMigrationCassandraBackend(SettingsProviderType settingsProvider)
@@ -39,10 +41,34 @@ public:
         migrationSchema_.prepareStatements(this->handle_);
     }
 
-    MigrationSchema<SettingsProviderType> const&
+    auto const&
     getMigrationSchema() const
     {
         return migrationSchema_;
+    }
+
+    void
+    migrateObjectsInTokenRange(
+        std::int64_t const& start,
+        std::int64_t const& end,
+        auto const& transform,
+        boost::asio::yield_context yield
+    )
+    {
+        auto statement = migrationSchema_->objectsTraverse.bind(start, end);
+        auto const res = this->executor_.read(yield, statement);
+        auto const& results = res.value();
+        if (not results.hasRows()) {
+            LOG(log_.debug()) << "No rows returned";
+            return;
+        }
+
+        auto numRows = results.numRows();
+        LOG(log_.info()) << "num_rows = " << numRows;
+
+        for (auto [key, seq, object] : extract<ripple::uint256, uint32_t, data::Blob>(results)) {
+            transform(key, seq, object);
+        }
     }
 };
 
@@ -54,23 +80,19 @@ inline std::shared_ptr<MigrationCassandraBackend>
 make_MigrationBackend(util::Config const& config)
 {
     static util::Logger const log{"MigrationBackend"};
-    LOG(log.info()) << "Constructing BackendInterface";
-
-    auto const readOnly = config.valueOr("read_only", false);
+    LOG(log.info()) << "Constructing MigrationBackend";
 
     auto const type = config.value<std::string>("database.type");
     std::shared_ptr<MigrationCassandraBackend> backend = nullptr;
 
     if (boost::iequals(type, "cassandra")) {
         auto cfg = config.section("database." + type);
-        backend = std::make_shared<data::cassandra::MigrationCassandraBackend>(
-            data::cassandra::SettingsProvider{cfg}, readOnly
-        );
+        backend = std::make_shared<MigrationCassandraBackend>(data::cassandra::SettingsProvider{cfg});
     }
 
     if (!backend)
         throw std::runtime_error("Invalid database type");
 
-    LOG(log.info()) << "Constructed BackendInterface Successfully";
+    LOG(log.info()) << "Constructed MigrationBackend Successfully";
     return backend;
 }

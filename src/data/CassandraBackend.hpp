@@ -73,12 +73,13 @@ class BasicCassandraBackend : public BackendInterface {
 
     SettingsProviderType settingsProvider_;
     Schema<SettingsProviderType> schema_;
-    Handle handle_;
-
-    // have to be mutable because BackendInterface constness :(
-    mutable ExecutionStrategyType executor_;
 
     std::atomic_uint32_t ledgerSequence_ = 0u;
+
+protected:
+    Handle handle_;
+    // have to be mutable because BackendInterface constness :(
+    mutable ExecutionStrategyType executor_;
 
 public:
     /**

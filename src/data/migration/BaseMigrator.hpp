@@ -19,6 +19,7 @@
 #pragma once
 
 #include "data/BackendInterface.hpp"
+#include "data/migration/MigrationCassandraBackend.hpp"
 
 #include <memory>
 #include <string>
@@ -33,5 +34,5 @@ public:
     virtual bool
     blockIfNotMigrated() const = 0;
     virtual void
-    runMigration(std::shared_ptr<data::BackendInterface> backend) = 0;
+    runMigration(std::shared_ptr<MigrationCassandraBackend> backend) = 0;
 };
