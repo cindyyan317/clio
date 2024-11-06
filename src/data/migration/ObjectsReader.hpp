@@ -27,6 +27,14 @@ class ObjectsReader {
     std::shared_ptr<MigrationCassandraBackend> backend_;
     OnObjectRead onObjectRead_;
 
+    class TableObjectsDesc {
+    public:
+        using row = std::tuple<ripple::uint256, uint32_t, data::Blob>;
+        using callback = std::function<void(row const&)>;
+        static constexpr char const* partitionKey = "key";
+        static constexpr char const* tableName = "objects";
+    };
+
 public:
     ObjectsReader(std::shared_ptr<MigrationCassandraBackend> backend, OnObjectRead onObjectRead)
         : backend_{std::move(backend)}, onObjectRead_{std::move(onObjectRead)}
@@ -44,10 +52,13 @@ public:
     fromTokenRange(TokenRange const& token, boost::asio::yield_context yield)
     {
         std::cout << "start: " << token.start << " end: " << token.end << std::endl;
-        backend_->migrateObjectsInTokenRange(
+        backend_->migrateInTokenRange<TableObjectsDesc>(
             token.start,
             token.end,
-            [this](std::uint32_t sequence, data::Blob const& object) { this->onReadComplete(sequence, object); },
+            [this](TableObjectsDesc::row const& row) {
+                auto [key, seq, object] = row;
+                this->onReadComplete(seq, object);
+            },
             yield
         );
     }

@@ -84,7 +84,9 @@ public:
                          WHERE TOKEN({}) >= ? 
                            AND TOKEN({}) <= ?
                 )",
-            qualifiedTableName(settingsProvider_.get(), table, key, key)
+            qualifiedTableName(settingsProvider_.get(), table),
+            key,
+            key
         ));
     }
 

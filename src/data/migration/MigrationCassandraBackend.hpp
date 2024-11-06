@@ -23,13 +23,6 @@
 #include "data/cassandra/Schema.hpp"
 #include "data/migration/MigrationSchema.hpp"
 
-class TableObjectsDesc {
-    using row = std::tuple<ripple::uint256, uint32_t, data::Blob>;
-    using callback = std::function<void(row)>;
-    static constexpr char const* partitionKey = "key";
-    static constexpr char const* tableName = "objects";
-};
-
 template <
     data::cassandra::SomeSettingsProvider SettingsProviderType,
     data::cassandra::SomeExecutionStrategy ExecutionStrategyType>
@@ -77,10 +70,9 @@ public:
         auto numRows = results.numRows();
         LOG(log_.info()) << "num_rows = " << numRows;
 
-        std::apply([](auto... args) { data::cassandra::extract<decltype(args)...>(); }, typename TableDesc::row{});
-
         for (auto row : std::apply(
-                 [](auto... args) { data::cassandra::extract<decltype(args)...>(); }, typename TableDesc::row{}
+                 [&](auto... args) { return data::cassandra::extract<decltype(args)...>(results); },
+                 typename TableDesc::row{}
              )) {
             callback(row);
         }
