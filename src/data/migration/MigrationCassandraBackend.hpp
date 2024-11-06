@@ -23,6 +23,13 @@
 #include "data/cassandra/Schema.hpp"
 #include "data/migration/MigrationSchema.hpp"
 
+class TableObjectsDesc {
+    using row = std::tuple<ripple::uint256, uint32_t, data::Blob>;
+    using callback = std::function<void(row)>;
+    static constexpr char const* partitionKey = "key";
+    static constexpr char const* tableName = "objects";
+};
+
 template <
     data::cassandra::SomeSettingsProvider SettingsProviderType,
     data::cassandra::SomeExecutionStrategy ExecutionStrategyType>
@@ -47,6 +54,38 @@ public:
         return migrationSchema_;
     }
 
+    template <typename TableDesc>
+    void
+    migrateInTokenRange(
+        std::int64_t const& start,
+        std::int64_t const& end,
+        TableDesc::callback callback,
+        boost::asio::yield_context yield
+    )
+    {
+        static auto statementPrepared =
+            migrationSchema_->getPreparedStatement(TableDesc::tableName, TableDesc::partitionKey);
+        auto statement = statementPrepared.bind(start, end);
+
+        auto const res = this->executor_.read(yield, statement);
+        auto const& results = res.value();
+        if (not results.hasRows()) {
+            LOG(log_.debug()) << "No rows returned";
+            return;
+        }
+
+        auto numRows = results.numRows();
+        LOG(log_.info()) << "num_rows = " << numRows;
+
+        std::apply([](auto... args) { data::cassandra::extract<decltype(args)...>(); }, typename TableDesc::row{});
+
+        for (auto row : std::apply(
+                 [](auto... args) { data::cassandra::extract<decltype(args)...>(); }, typename TableDesc::row{}
+             )) {
+            callback(row);
+        }
+    }
+
     void
     migrateObjectsInTokenRange(
         std::int64_t const& start,
@@ -68,6 +107,31 @@ public:
 
         for (auto [key, seq, object] : data::cassandra::extract<ripple::uint256, uint32_t, data::Blob>(results)) {
             onRead(seq, object);
+        }
+    }
+
+    void
+    migrateTransactionsInTokenRange(
+        std::int64_t const& start,
+        std::int64_t const& end,
+        std::function<void(data::Blob const&, data::Blob const&)> const& onRead,
+        boost::asio::yield_context yield
+    )
+    {
+        auto statement = migrationSchema_->transactionsTraverse.bind(start, end);
+        auto const res = this->executor_.read(yield, statement);
+        auto const& results = res.value();
+        if (not results.hasRows()) {
+            LOG(log_.debug()) << "No rows returned";
+            return;
+        }
+
+        auto numRows = results.numRows();
+        LOG(log_.info()) << "num_rows = " << numRows;
+
+        for (auto [_1, _2, _3, txBlob, metaBlob] :
+             data::cassandra::extract<ripple::uint256, uint32_t, uint32_t, data::Blob, data::Blob>(results)) {
+            onRead(txBlob, metaBlob);
         }
     }
 };

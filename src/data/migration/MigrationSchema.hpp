@@ -75,6 +75,19 @@ public:
     {
     }
 
+    data::cassandra::PreparedStatement
+    getPreparedStatement(std::string const& table, std::string const& key)
+    {
+        return handle_.get().prepare(fmt::format(
+            R"(
+                SELECT * FROM {} 
+                         WHERE TOKEN({}) >= ? 
+                           AND TOKEN({}) <= ?
+                )",
+            qualifiedTableName(settingsProvider_.get(), table, key, key)
+        ));
+    }
+
     // the statements only work in migration process
     data::cassandra::PreparedStatement objectsTraverse = [this]() {
         return handle_.get().prepare(fmt::format(
@@ -84,6 +97,17 @@ public:
                            AND TOKEN(key) <= ?
                 )",
             qualifiedTableName(settingsProvider_.get(), "objects")
+        ));
+    }();
+
+    data::cassandra::PreparedStatement transactionsTraverse = [this]() {
+        return handle_.get().prepare(fmt::format(
+            R"(
+                SELECT transaction, metadata FROM {} 
+                         WHERE TOKEN(hash) >= ? 
+                           AND TOKEN(hash) <= ?
+                )",
+            qualifiedTableName(settingsProvider_.get(), "transactions")
         ));
     }();
 };

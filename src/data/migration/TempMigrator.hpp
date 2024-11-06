@@ -47,9 +47,6 @@ public:
     void
     runMigration(std::shared_ptr<MigrationCassandraBackend> backend) override
     {
-        ObjectsReader reader(backend, [](data::Blob const& object, std::uint32_t sequence) {
-            std::cout << "sequence: " << sequence << " object: " << object.size() << std::endl;
-        });
         ObjectsScaner scanner(
             2,
             4,

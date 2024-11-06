@@ -29,7 +29,8 @@ class Clio(ConanFile):
         'grpc/1.50.1',
         'openssl/1.1.1u',
         'xrpl/2.3.0-b4',
-        'libbacktrace/cci.20210118'
+        'libbacktrace/cci.20210118',
+        'zlib/1.3.1'
     ]
 
     default_options = {
