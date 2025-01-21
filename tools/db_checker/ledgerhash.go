@@ -77,7 +77,7 @@ func checkingLedgerHash(cluster *gocql.ClusterConfig, startLedgerIndex uint64, e
 		for i := 0; i < thisStep; i++ {
 			seq := ledgerIndex - uint64(i)
 			go func() {
-				log.Printf("Checked Seq : %d: \n", seq)
+				log.Printf("Checking Seq : %d: \n", seq)
 				ledgerHashStr := getLedgerHashFromLedgerHeader(cluster, seq)
 				seqFromTable := getSeqFromLedgerHash(cluster, ledgerHashStr, seq, ledgerHashFix)
 				if seqFromTable != seq {
