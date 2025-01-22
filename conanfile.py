@@ -24,13 +24,13 @@ class Clio(ConanFile):
         'boost/1.82.0',
         'cassandra-cpp-driver/2.17.0',
         'fmt/10.1.1',
-        'protobuf/3.21.12',
+        'protobuf/3.21.9',
         'grpc/1.50.1',
         'zlib/1.3.1',
         'openssl/1.1.1u',
-        'xrpl/2.2.0-b1',
+        'xrpl/2.4.0-b1@clio/permission_domains',
         'libbacktrace/cci.20210118'
-    ]
+            ]
 
     default_options = {
         'fPIC': True,

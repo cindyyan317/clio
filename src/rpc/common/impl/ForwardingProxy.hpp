@@ -94,7 +94,7 @@ public:
         auto const res = balancer_->forwardToRippled(toForward, ctx.clientIp, ctx.yield);
         if (not res) {
             notifyFailedToForward(ctx.method);
-            return Status{RippledError::rpcFAILED_TO_FORWARD};
+            return Status{RippledError::rpcFORBIDDEN};  // not used by validation, just for building pass
         }
 
         notifyForwarded(ctx.method);

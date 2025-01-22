@@ -43,7 +43,6 @@
 #include <fmt/core.h>
 #include <ripple/basics/Slice.h>
 #include <ripple/basics/StringUtilities.h>
-#include <ripple/basics/XRPAmount.h>
 #include <ripple/basics/base_uint.h>
 #include <ripple/basics/chrono.h>
 #include <ripple/basics/strHex.h>
@@ -72,6 +71,7 @@
 #include <ripple/protocol/TxFormats.h>
 #include <ripple/protocol/TxMeta.h>
 #include <ripple/protocol/UintTypes.h>
+#include <ripple/protocol/XRPAmount.h>
 #include <ripple/protocol/jss.h>
 #include <ripple/protocol/nftPageMask.h>
 #include <ripple/protocol/tokens.h>
@@ -949,7 +949,7 @@ accountHolds(
     auto const blob = backend.fetchLedgerObject(key, sequence, yield);
 
     if (!blob) {
-        amount.clear({currency, issuer});
+        amount.clear();
         return amount;
     }
 

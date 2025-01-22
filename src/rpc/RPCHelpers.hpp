@@ -40,7 +40,6 @@
 #include <boost/regex/v5/regex_fwd.hpp>
 #include <boost/regex/v5/regex_match.hpp>
 #include <fmt/core.h>
-#include <ripple/basics/XRPAmount.h>
 #include <ripple/basics/base_uint.h>
 #include <ripple/json/json_value.h>
 #include <ripple/protocol/AccountID.h>
@@ -60,6 +59,7 @@
 #include <ripple/protocol/SecretKey.h>
 #include <ripple/protocol/TxMeta.h>
 #include <ripple/protocol/UintTypes.h>
+#include <ripple/protocol/XRPAmount.h>
 
 #include <chrono>
 #include <cstddef>

@@ -27,9 +27,8 @@
 #include <boost/json/conversion.hpp>
 #include <boost/json/object.hpp>
 #include <boost/json/value.hpp>
-#include <ripple/basics/IOUAmount.h>
-#include <ripple/basics/XRPAmount.h>
 #include <ripple/beast/utility/Zero.h>
+#include <ripple/protocol/IOUAmount.h>
 #include <ripple/protocol/Issue.h>
 #include <ripple/protocol/LedgerFormats.h>
 #include <ripple/protocol/LedgerHeader.h>
@@ -38,6 +37,7 @@
 #include <ripple/protocol/STObject.h>
 #include <ripple/protocol/STTx.h>
 #include <ripple/protocol/TxFormats.h>
+#include <ripple/protocol/XRPAmount.h>
 #include <ripple/protocol/jss.h>
 
 #include <algorithm>
