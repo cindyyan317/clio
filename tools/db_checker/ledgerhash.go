@@ -67,6 +67,7 @@ func getSeqFromLedgerHash(cluster *gocql.ClusterConfig, ledgerHash string, seq u
 func checkingLedgerHash(cluster *gocql.ClusterConfig, startLedgerIndex uint64, endLedgerIndex uint64, step int, ledgerHashFix bool) uint64 {
 	ledgerIndex := endLedgerIndex
 	var mismatch uint64 = 0
+	cluster.NumConns = 1
 
 	for ledgerIndex >= startLedgerIndex {
 

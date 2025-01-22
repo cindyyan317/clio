@@ -58,7 +58,6 @@ GetAccountTxnIDFromTx(
     unsigned int* txnIndex
 )
 {
-    try {
     ripple::Slice slice{txBlob, (size_t)txSize};
     ripple::STTx txn(slice);
     ripple::SerialIter meta{metaBlob, (size_t)metaSize};
@@ -75,11 +74,6 @@ GetAccountTxnIDFromTx(
         }
     }
     *accountCount = i;
-    } catch (std::runtime_error const& e) {
-        std::cerr << "Exception: " << e.what() << std::endl;
-        *accountCount = 0;
-        *txnIndex = 0;
-    }
 }
 
 void
@@ -101,7 +95,6 @@ GetNFTFromTx(
     unsigned int* taxon
 )
 {
-     try{
     ripple::Slice slice{txBlob, (size_t)txSize};
     ripple::STTx txn(slice);
     ripple::SerialIter meta{metaBlob, (size_t)metaSize};
@@ -127,9 +120,6 @@ GetNFTFromTx(
         }
         *isBurned = maybeNft->isBurned ? 1 : 0;
         *taxon = static_cast<uint32_t>(ripple::nft::getTaxon(maybeNft->tokenID));
-    }
-     }catch (std::exception& e) {
-        std::cerr << "Exception: " << e.what() << std::endl;
     }
 }
 
