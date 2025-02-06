@@ -77,7 +77,6 @@ func roundDown(n uint32, roundTo uint32) uint32 {
 }
 
 func saveLedgerDeltaData(seq uint32, response *pb.GetLedgerResponse, path string) {
-	// create subfolder
 	subPath := filepath.Join(path, fmt.Sprintf("ledger_diff_%d", roundDown(seq, deltaDataFolderDiv)))
 	err := os.MkdirAll(subPath, os.ModePerm)
 	if err != nil {
@@ -130,7 +129,6 @@ func saveLedgerData(client pb.XRPLedgerAPIServiceClient, seq uint32, marker []by
 	}
 	request.User = grpcUser
 
-	// create subfolder
 	subPath := filepath.Join(path, fmt.Sprintf("ledger_data_%d", seq), fmt.Sprintf("marker_%x", marker))
 	err := os.MkdirAll(subPath, os.ModePerm)
 	if err != nil {
@@ -216,7 +214,7 @@ func ExportFromFullLedgerImpl(client pb.XRPLedgerAPIServiceClient, startSeq uint
 
 	getLedgerFullData(client, startSeq, path)
 
-	//we need to fetch the ledger header and txs for startSeq as well
+	//We need to fetch the ledger header and txs for startSeq as well
 	for i := startSeq; i <= endSeq; i++ {
 		getLedgerDeltaData(client, i, path)
 	}
