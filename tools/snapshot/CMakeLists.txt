@@ -7,6 +7,9 @@ set(PROTO_INC_DIR "${xrpl_PACKAGE_FOLDER_RELEASE}/include/xrpl/proto")
 set(PROTO_SOURCE_DIR "${PROTO_INC_DIR}/org/xrpl/rpc/v1/")
 set(GO_OUTPUT "${CMAKE_BINARY_DIR}/clio_snapshot")
 
+file(GLOB_RECURSE GO_SOURCES ${GO_SOURCE_DIR}/*.go)
+
+
 set(PROTO_FILES
     ${PROTO_SOURCE_DIR}/xrp_ledger.proto ${PROTO_SOURCE_DIR}/ledger.proto ${PROTO_SOURCE_DIR}/get_ledger.proto
     ${PROTO_SOURCE_DIR}/get_ledger_entry.proto ${PROTO_SOURCE_DIR}/get_ledger_data.proto
@@ -61,6 +64,7 @@ add_custom_command(
   OUTPUT ${GO_OUTPUT}
   COMMAND ${GO_EXECUTABLE} build -o ${GO_OUTPUT} ${GO_SOURCE_DIR}
   WORKING_DIRECTORY ${GO_SOURCE_DIR}
+  DEPENDS ${GO_SOURCES}
   COMMENT "Building clio_snapshot"
   VERBATIM
 )

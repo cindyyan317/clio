@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net"
 
@@ -46,8 +45,8 @@ func newServer() *Server {
 	return s
 }
 
-func StartServer(port uint32) {
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+func StartServer(grpcServerAddr string) {
+	lis, err := net.Listen("tcp", grpcServerAddr)
 
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)

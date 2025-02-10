@@ -19,7 +19,6 @@ func main() {
 	path := flag.String("path", "", "Path to the data")
 	grpcServer := flag.String("grpc_server", "localhost:50051", "rippled's gRPC server address")
 	serverMode := flag.Bool("server", false, "Start server mode")
-	grpcPort := flag.Int("grpc_port", 0, "Port for gRPC server to listen on")
 	wsPort := flag.Int("ws_port", 0, "Port for WebSocket server to listen on")
 
 	flag.Parse()
@@ -31,12 +30,12 @@ func main() {
 
 	// Handle the --server mode
 	if *serverMode {
-		if *grpcPort == 0 || *wsPort == 0 || *path == "" {
-			log.Fatal("Error: --grpc_port and --ws_port and --path are required for server mode.")
+		if *grpcServer == "" || *wsPort == 0 || *path == "" {
+			log.Fatal("Error: --grpc_server and --ws_port and --path are required for server mode.")
 		}
 
-		log.Printf("Starting server with gRPC on port %d and WebSocket on port %d...\n", *grpcPort, *wsPort)
-		server.StartServer(uint32(*grpcPort))
+		log.Printf("Starting server with gRPC at %s and WebSocket on port %d...\n", *grpcServer, *wsPort)
+		server.StartServer(*grpcServer)
 		return
 	}
 
