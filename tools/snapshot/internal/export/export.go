@@ -183,7 +183,11 @@ func getLedgerFullData(client pb.XRPLedgerAPIServiceClient, seq uint32, path str
 	}
 
 	wg.Wait()
-
+	Manifest := NewManifest(path)
+	err := Manifest.setLedgerRange(seq, seq)
+	if err != nil {
+		log.Fatalf("Error writing manifest file: %v", err)
+	}
 }
 
 func checkPath(path string) {
@@ -233,6 +237,12 @@ func ExportFromDeltaLedger(grpcServer string, startSeq uint32, endSeq uint32, pa
 	defer client.Close()
 
 	ExportFromDeltaLedgerImpl(client.Client, startSeq, endSeq, path)
+
+	Manifest := NewManifest(path)
+	err = Manifest.appendDeltaLedger(startSeq, endSeq)
+	if err != nil {
+		log.Fatalf("Error writing manifest file: %v", err)
+	}
 }
 
 func ExportFromDeltaLedgerImpl(client pb.XRPLedgerAPIServiceClient, startSeq uint32, endSeq uint32, path string) {
